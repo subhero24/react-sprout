@@ -1,0 +1,2 @@
+When using useSyncExternalStore, there is no internal state. So only external controlled routers, or browser routers are possible.
+Memory routers are not possible in combination with useSyncExternalStore

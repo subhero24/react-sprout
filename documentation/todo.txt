@@ -1,0 +1,7 @@
+match.rest -> splat?
+dirty on render -> dirty on page?
+action should wait for navigating? YES
+bug: loaders promise fullfill before action when there are no loaders
+fix matching algo ... allow parallel searches
+
+// how to do caching? look for all cached pages? only previous? let browser do the caching?
