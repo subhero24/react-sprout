@@ -1,7 +1,13 @@
+child suspense fallback
+
 match.rest -> splat?
 dirty on render -> dirty on page?
 action should wait for navigating? YES
 bug: loaders promise fullfill before action when there are no loaders
 fix matching algo ... allow parallel searches
+clean up pages after suspended mount?
 
-// how to do caching? look for all cached pages? only previous? let browser do the caching?
+Add redirects from action?
+Add response result from action?
+
+Split pagesRef into currentPageRef and busyPagesRef?

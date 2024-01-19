@@ -19,7 +19,7 @@ export default function useStateWithCallback(initialState) {
 	useInsertionEffect(() => {
 		callbackRef.current?.();
 		callbackRef.current = undefined;
-	});
+	}, [state]);
 
 	return [state, setStateWithCallback];
 }

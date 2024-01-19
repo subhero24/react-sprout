@@ -164,7 +164,7 @@ function assertElementPathHasNoHash(element) {
 }
 
 export function createConfigLoader(prefix, level) {
-	return async function loader(options, { request }) {
+	return async function loader({ request }) {
 		let url = new URL(request.url);
 		let response = await fetch(`${prefix}${url.pathname}${url.search}`, {
 			headers: {
@@ -185,17 +185,17 @@ export function createConfigLoader(prefix, level) {
 		if (response.ok) {
 			return result;
 		} else {
-			throw new HttpError(response.status, response.statusText, { cause: result });
+			throw response;
 		}
 	};
 }
 
 export function createConfigAction(prefix) {
-	return async function action({ data }, { request }) {
+	return async function action({ formData, request }) {
 		let url = new URL(request.url);
 		let response = await fetch(`${prefix}${url.pathname}${url.search}`, {
 			method: 'POST',
-			body: data,
+			body: formData,
 			headers: { Accept: 'application/json' },
 		});
 
@@ -211,7 +211,7 @@ export function createConfigAction(prefix) {
 		if (response.ok) {
 			return result;
 		} else {
-			throw new HttpError(response.status, response.statusText, { cause: result });
+			throw response;
 		}
 	};
 }

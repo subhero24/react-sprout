@@ -1,2 +1,33 @@
 When using useSyncExternalStore, there is no internal state. So only external controlled routers, or browser routers are possible.
 Memory routers are not possible in combination with useSyncExternalStore
+
+Should useLoader for a loader which returns a response return the response, or the result of the response?
+
+let [Link, navigations] = useLink()
+let [Form, navigations] = useForm()
+let [navigate, navigations] = useNavigate()
+
+let router = useRouter()
+
+router.abort()
+router.reload()
+router.navigate()
+
+let navigations = useNavigations()
+
+let [reload, navigation] = useReload()
+
+let history = useHistory()
+let location = useLocation()
+
+
+let loader = useLoader()
+
+let error = useActionError()
+let action = useActionResult()
+
+
+
+
+
+

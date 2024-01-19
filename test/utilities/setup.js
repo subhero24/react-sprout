@@ -1,8 +1,21 @@
-import Puppeteer from 'puppeteer';
+import Puppeteer from 'puppeteer-extra';
+import PuppeteerPreferences from 'puppeteer-extra-plugin-user-preferences';
 
 import { createServer } from 'vite';
 
 let testing = process.env.NODE_ENV === 'test';
+
+Puppeteer.use(
+	PuppeteerPreferences({
+		userPrefs: {
+			devtools: {
+				preferences: {
+					currentDockState: '"undocked"',
+				},
+			},
+		},
+	}),
+);
 
 export default async function (root, path, test) {
 	let browser = await Puppeteer.launch({ headless: testing ? false : 'new', devtools: testing });

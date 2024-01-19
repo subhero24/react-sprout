@@ -1,28 +1,31 @@
 {
-  "name": "react-sprout",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
-		"test": "node --test-concurrency 1 --test ./test/tests/**/test.spec.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "esbuild": "^0.19.10",
-    "eslint": "^8.56.0",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "prettier": "^3.1.1",
-    "puppeteer": "^21.6.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "vite": "^5.0.10"
-  },
-  "dependencies": {
-    "http-errors": "github:subhero24/http-errors"
-  }
+	"name": "react-sprout",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
+		"test": "node --test-concurrency 1 --test ./test/tests/**/test.spec.js",
+		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --jsx=automatic --minify --analyze"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"esbuild": "^0.19.10",
+		"eslint": "^8.56.0",
+		"eslint-plugin-react": "^7.33.2",
+		"eslint-plugin-react-hooks": "^4.6.0",
+		"prettier": "^3.1.1",
+		"puppeteer": "^21.6.1",
+		"puppeteer-extra": "^3.3.6",
+		"puppeteer-extra-plugin-user-preferences": "^2.4.1",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"vite": "^5.0.10"
+	},
+	"dependencies": {
+		"http-errors": "github:subhero24/http-errors"
+	}
 }

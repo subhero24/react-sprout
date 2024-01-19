@@ -5,10 +5,10 @@ import { isEquivalentObject } from './object.js';
 import { matchQuery, filterQuery } from './query.js';
 import { matchDescriptor, interpolateDescriptor } from './descriptor.js';
 
-export function createMatch(configs, request, context) {
+export function createMatch(configs, requested, context) {
 	let { root = '/', params: parentParams = {} } = context ?? {};
 
-	let location = new URL(request.url);
+	let location = new URL(requested.url);
 	for (let config of configs) {
 		let strict = config.children == undefined && config.pathname !== '';
 		let pathnameDescriptor = resolvePaths(root, config.pathname);
@@ -48,7 +48,7 @@ export function createMatch(configs, request, context) {
 			let children = config.children;
 			if (children) {
 				let root = base;
-				let matches = createMatch(children, request, { root, params });
+				let matches = createMatch(children, requested, { root, params });
 				if (matches == undefined) {
 					continue;
 				} else {
@@ -61,21 +61,21 @@ export function createMatch(configs, request, context) {
 	}
 }
 
-export function isEquivalentMatch(objectA, objectB) {
-	if (objectA === objectB) return true;
+export function isEquivalentMatch(matchA, matchB) {
+	if (matchA === matchB) return true;
 
-	let sameComponent = objectA.config.type === objectB.config.type;
+	let sameComponent = matchA.config.type === matchB.config.type;
 	if (sameComponent) {
-		let sameLoader = objectA.config.loader === objectB.config.loader;
+		let sameLoader = matchA.config.loader === matchB.config.loader;
 		if (sameLoader) {
-			let sameUrl = objectA.url.href === objectB.url.href;
+			let sameUrl = matchA.url.href === matchB.url.href;
 			if (sameUrl) {
 				// We still need to check splat and params, even though the url is the same
 				// because the matched path descriptor could be different, effectively changing params and/or splat
 				// even though the url is the same
-				let sameSplat = isEquivalentObject(objectA.splat, objectB.splat);
+				let sameSplat = isEquivalentObject(matchA.splat, matchB.splat);
 				if (sameSplat) {
-					let sameParams = isEquivalentObject(objectA.params, objectB.params);
+					let sameParams = isEquivalentObject(matchA.params, matchB.params);
 					if (sameParams) {
 						return true;
 					}

@@ -4,8 +4,6 @@ import useRouter from '../hooks/use-router.js';
 import useResolve from '../hooks/use-resolve.js';
 
 function Link(props, ref) {
-	let router = useRouter();
-
 	let {
 		href,
 		target,
@@ -14,6 +12,7 @@ function Link(props, ref) {
 		replace,
 		title,
 		state,
+		cache,
 		sticky,
 		relative = true,
 		onClick,
@@ -26,6 +25,7 @@ function Link(props, ref) {
 		...other
 	} = props;
 
+	let router = useRouter();
 	let resolve = useResolve();
 	let resolvedPath = resolve(href, { relative });
 
@@ -40,13 +40,15 @@ function Link(props, ref) {
 			if (shouldNavigate && router) {
 				event.preventDefault();
 
+				// Resolve always returns an absolute path, so we can use the components router without a problem
 				router.navigate(resolvedPath, {
 					state,
 					title,
-					reload,
+					cache,
 					push,
 					replace,
 					sticky,
+					reload,
 					onError,
 					onCancel,
 					onAborted,

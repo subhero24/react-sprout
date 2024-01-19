@@ -1,30 +1,38 @@
-import { useInsertionEffect, useMemo } from 'react';
+import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { createConfig } from './utilities/config.js';
 import { createRender } from './utilities/render.js';
+import { createAction } from './utilities/action.js';
+import { createLoaders } from './utilities/loaders.js';
+import { createPromise } from './utilities/promise.js';
 import { createElements } from './utilities/elements.js';
+import { createScheduler, resetScheduler } from './utilities/scheduler.js';
 
-import { pathParts } from './utilities/path.js';
 import { nativeWindow } from './utilities/window.js';
 import { nativeHistory } from './utilities/history.js';
 
+import { pathParts } from './utilities/path.js';
+
 import useRequest from './hooks/use-request.js';
 import useLastValue from './hooks/use-last-value.js';
-import useStateWithCallback from './hooks/use-state-with-callback.js';
+import useMountedRef from './hooks/use-mounted-ref.js';
 import useImmutableCallback from './hooks/use-immutable-callback.js';
+import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import { routerContext } from './hooks/use-router.js';
+import { loadersContext } from './hooks/use-loaders.js';
+import { optionsContext, defaultOptions } from './hooks/use-options.js';
 import { locationContext } from './hooks/use-location.js';
+import { navigationsContext } from './hooks/use-navigations.js';
 
-const GET = 'GET';
-const POST = 'POST';
+import { GET, POST } from './constants.js';
+import { PUSH, REPLACE } from './constants.js';
+import { FETCH, RELOAD, TRANSITION } from './constants.js';
 
-const PUSH = 'PUSH';
-const REPLACE = 'REPLACE';
+import sleep from '../test/utilities/sleep.js';
+import startTransition from './utilities/transition.js';
 
-const FETCH = 'FETCH';
-const RELOAD = 'RELOAD';
-const TRANSITION = 'TRANSITION';
+const identityTransform = id => id;
 
 export default function Routes(...args) {
 	let options;
@@ -36,17 +44,19 @@ export default function Routes(...args) {
 		[options, elements] = args;
 	}
 
-	let pages = new Map();
 	let config = createConfig(elements, options);
 
-	let nativeRequests = Object.create(null);
+	let suspenseRequestByHrefCache = new Map();
+	let suspensePageByRequestCache = new Map();
 
 	return function Router(props) {
 		let {
 			sticky: stickyDefault = false,
 			request: routerRequest,
-			delayPendingMs: delayMs = 50,
-			minimalPendingMs: minimalMs = 500,
+			delayLoadingMs = defaultOptions.delayLoadingMs,
+			minimumLoadingMs = defaultOptions.minimumLoadingMs,
+			defaultFormMethod = defaultOptions.defaultFormMethod,
+			transformFormData = identityTransform,
 			onError: onRouterError,
 			onCancel: onRouterCancel,
 			onAborted: onRouterAborted,
@@ -55,17 +65,65 @@ export default function Routes(...args) {
 			onNavigateStart: onRouterNavigateStart,
 		} = props;
 
+		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
+		let cacheRef = useRef([]);
+
+		// Keep track of all loading pages. The current page in pageRef, and concurrent pages in pagesRef
+		let pageRef = useRef();
+		let pagesRef = useRef([]);
+
+		let mountedRef = useMountedRef();
+		let mounted = mountedRef.current;
+
+		let onRouterErrorCallback = useImmutableCallback(onRouterError);
+		let onRouterCancelCallback = useImmutableCallback(onRouterCancel);
+		let onRouterAbortedCallback = useImmutableCallback(onRouterAborted);
+		let onRouterNavigateCallback = useImmutableCallback(onRouterNavigate);
+		let onRouterNavigateEndCallback = useImmutableCallback(onRouterNavigateEnd);
+		let onRouterNavigateStartCallback = useImmutableCallback(onRouterNavigateStart);
+
+		let abortPage = useImmutableCallback((page, reason) => {
+			page.promise.reject(reason);
+			page.action?.controller.abort(reason);
+			page.loaders?.forEach(loader => loader.controller.abort(reason));
+			page.callbacks?.onAborted?.(page.event, reason);
+
+			onRouterAbortedCallback?.(page.event, reason);
+		});
+
+		let cleanCache = useImmutableCallback(() => {
+			for (let initialPage of suspensePageByRequestCache.values()) {
+				if (initialPage !== page) {
+					abortPage(initialPage);
+				}
+			}
+		});
+
 		let superRequest = useRequest();
 		let externalRequest = routerRequest ?? superRequest;
 
-		let nativeRequest;
 		let native = externalRequest == undefined && nativeWindow;
-		if (native) {
-			nativeRequest = nativeRequests[nativeWindow.location.href];
-			if (nativeRequest == undefined) {
-				nativeRequest = nativeRequests[nativeWindow.location.href] = new Request(nativeWindow.location.href);
+		let nativeHref = nativeWindow?.location.href;
+		let nativeRequest = useMemo(() => {
+			let mounted = mountedRef.current;
+			if (native) {
+				let request;
+				if (mounted) {
+					request = new Request(nativeHref);
+				} else {
+					request = suspenseRequestByHrefCache.get(nativeHref);
+					if (request == undefined) {
+						request = new Request(nativeHref);
+						suspenseRequestByHrefCache.set(nativeHref, request);
+					}
+				}
+
+				return request;
 			}
-		}
+		}, [mountedRef, native, nativeHref]);
+
+		let [error, setError] = useState();
+		let [navigations, setNavigations] = useState([]);
 
 		let [page, setPage] = useStateWithCallback(() => {
 			let request = externalRequest ?? nativeRequest;
@@ -75,30 +133,29 @@ export default function Routes(...args) {
 				);
 			}
 
-			let page = pages.get(request);
+			let page = suspensePageByRequestCache.get(request);
 			if (page == undefined) {
 				page = createPage(request);
-				pages.set(request, page);
+				suspensePageByRequestCache.set(request, page);
 			}
 
 			return page;
 		});
 
+		// When the externalRequest changes, we reset the page
+		// ExternalRequest also is different when initial rendering has an externalRequest,
+		// in that case, the page was already set in the pages state initializer
 		let externalRequested = useLastValue(externalRequest);
-		if (externalRequested !== externalRequest) {
-			setPage(createPage(externalRequest, { current: page }));
+		if (externalRequested !== externalRequest && mounted) {
+			setPage(createPage(externalRequest, { cache: page }));
 		}
-
-		// let [reloadNavigation, setReloadNavigation] = useState()
-		// let [fetchNavigations, setFetchNavigations] = useState([])
-		// let [transitionNavigation, setTransitionNavigation] = useState()
 
 		let locationUrl = page.render.request.url;
 		let locationBase = page.request.url;
 		let location = useMemo(() => new URL(locationUrl, locationBase), [locationUrl, locationBase]);
 		let elements = useMemo(() => createElements(page.render.root), [page.render.root]);
 
-		let navigate = useImmutableCallback((arg1, arg2) => {
+		let navigate = useImmutableCallback(async (arg1, arg2) => {
 			// navigate(options)
 			// navigate(to, options)
 			let to, options;
@@ -114,11 +171,11 @@ export default function Routes(...args) {
 				title,
 				state,
 				data,
-				sticky = stickyDefault,
-				store = false, // Cache the new page
-				cache = false, // Cache the old page
+				formData,
+				cache = false,
 				reload = false,
-				encoding,
+				sticky = stickyDefault,
+				enctype,
 				onError,
 				onCancel,
 				onAborted,
@@ -129,23 +186,23 @@ export default function Routes(...args) {
 
 			let url = new URL(to ?? '', location);
 			let fix = url.href === location.href;
-			let body = data;
 
-			let caching;
-			if (reload === false) caching = 'default';
-			if (reload && store === true) caching = 'reload';
-			if (reload && store === false) caching = 'no-store';
+			if (data == undefined && formData != undefined) {
+				data = transformFormData(formData);
+			}
 
-			let method = options?.method?.toUpperCase() ?? GET;
-			if (method === GET && data) {
+			let body;
+			let method = options?.method?.toUpperCase() ?? (formData ? defaultFormMethod : GET);
+			if (method === GET && formData) {
 				let parts = pathParts(url.href);
 				let pathName = parts[0];
 				let pathHash = parts[2] ?? '';
-				let pathSearch = new URLSearchParams(data);
+				let pathSearch = new URLSearchParams(formData);
 
 				fix = false;
 				url = new URL(`${pathName}?${pathSearch}${pathHash}`);
-				body = undefined;
+			} else {
+				body = data;
 			}
 
 			let type;
@@ -166,9 +223,10 @@ export default function Routes(...args) {
 				return;
 			}
 
-			let detail = { url, type, state, title, intent, method, data, encoding };
+			let detail = { url, type, state, title, intent, method, data, formData, enctype };
 			let event = new CustomEvent('navigate', { detail, cancelable: true });
-			let request = new Request(url, { body, method, cache: caching });
+			let cached = reload ? 'reload' : 'default';
+			let request = new Request(url, { body, method, cache: cached });
 
 			// When using an empty FormData as Request.body will result
 			// in chrome erroring with a TypeError: failed to fetch
@@ -182,40 +240,93 @@ export default function Routes(...args) {
 			}
 
 			onNavigate?.(event);
-			onRouterNavigate?.(event);
+			onRouterNavigateCallback(event);
 			if (native) {
 				nativeWindow?.dispatchEvent(event);
 			}
 
 			if (event.defaultPrevented) {
 				onCancel?.(event);
-				onRouterCancel(event);
+				onRouterCancelCallback(event);
 				return;
 			}
 
 			onNavigateStart?.(event);
-			onRouterNavigateStart?.(event);
-
-			// Start & stop reloading spinners
-			// Start & stop navigating spinners
+			onRouterNavigateStartCallback(event);
 
 			let callbacks = { onError, onAborted, onNavigateEnd };
-			let navigation = createPage(request, { current: page, event, cache, sticky, callbacks });
+			let navigationPage = createPage(request, { cache: page, event, detail, sticky, callbacks });
 
-			// Do this after action
-			setPage(navigation, () => {
-				if (native) {
-					if (typeof state === 'function') {
-						state = state(navigation.action?.resource.result);
-					}
+			let concurrent = sticky || intent === FETCH;
+			if (concurrent) {
+				let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
 
-					if (type === PUSH) {
-						nativeHistory?.pushState(state, title, navigation.render.request.url);
-					} else if (type === REPLACE) {
-						nativeHistory?.pushState(state, title, navigation.render.request.url);
-					}
+				let concurrent = intent === FETCH && navigations[0]?.detail?.intent === FETCH;
+				if (concurrent) {
+					setNavigations(navigations => [...navigations, navigation]);
+				} else {
+					setNavigations([navigation]);
 				}
-			});
+
+				if (delayLoadingMs > 0) {
+					setTimeout(() => {
+						setNavigations(navigations => {
+							let index = navigations.findIndex(navigation => navigation.detail === detail);
+							if (index === -1) {
+								return navigations;
+							} else {
+								return navigations.map((navigation, i) =>
+									i !== index ? navigation : { ...navigation, loading: true },
+								);
+							}
+						});
+					}, delayLoadingMs);
+				}
+			}
+
+			try {
+				let delayLoadingPromise = sleep(delayLoadingMs);
+
+				await Promise.race([navigationPage.actionPromise, navigationPage.promise]);
+				await Promise.race([navigationPage.loadersPromise, navigationPage.promise, delayLoadingPromise]);
+
+				await startTransition(sticky, () => {
+					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
+					setPage(navigationPage, () => {
+						// Update history after navigationPage
+						if (native) {
+							if (typeof state === 'function') {
+								state = state(navigationPage.action?.resource.result);
+							}
+
+							if (type === PUSH) {
+								// If pushing the history, cache the old
+								if (cache) {
+									cacheRef.current[nativeHistory.length - 1] = page;
+								}
+
+								nativeHistory.pushState(state, title, navigationPage.render.request.url);
+							} else if (type === REPLACE) {
+								nativeHistory.replaceState(state, title, navigationPage.render.request.url);
+							}
+
+							// When a navigation happens, after a popstate to the middle of the history stack
+							// the history forward items are no longer accessible, and we should clear these pages
+							// from the history cache.
+							cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+						}
+
+						onNavigateEnd?.(event);
+						onRouterNavigateEndCallback(event);
+
+						navigationPage.promise.resolve();
+					});
+				});
+			} catch (error) {
+				console.warn('aborted transitions');
+			}
+
+			return navigationPage.promise;
 		});
 
 		let reload = useImmutableCallback(options => {
@@ -225,16 +336,39 @@ export default function Routes(...args) {
 		});
 
 		let abort = useImmutableCallback(() => {
-			// Call onAborted of the background page
-
+			for (let page of pagesRef.current) {
+				abortPage(page, { callback: onRouterAbortedCallback });
+			}
 			setPage(page);
 		});
 
+		// Clean suspense cache
+		useEffect(() => {
+			cleanCache();
+
+			suspensePageByRequestCache.clear();
+			suspenseRequestByHrefCache.clear();
+		}, [cleanCache]);
+
+		// Abort the previous page and keep track of the new one
+		useLayoutEffect(() => {
+			let previousPage = pageRef.current;
+			if (previousPage) {
+				abortPage(previousPage, page.request);
+			}
+
+			pageRef.current = page;
+		}, [page, pageRef, abortPage]);
+
+		// Update page on popstate
+		// Use insertion effect in case someone navigates with the history in a useEffect or useLayoutEffect
+		// as child effects are run before parent effects
 		useInsertionEffect(() => {
 			if (native) {
 				function handlePopstate() {
-					let nativeRequest = new Request(nativeWindow.location);
-					let nativePage = createPage(nativeRequest); // Need to add { current: pageRef.current }
+					let request = new Request(nativeWindow.location);
+					let cachedPage = cacheRef.current.findLast(page => page?.request.url === request.url);
+					let nativePage = createPage(request, { cache: cachedPage });
 
 					setPage(nativePage);
 				}
@@ -247,24 +381,128 @@ export default function Routes(...args) {
 			}
 		}, [native]);
 
+		// Update resources to prevent spinner flicker on newly rendered page
+		useLayoutEffect(() => {
+			for (let loader of page.loaders) {
+				if (loader.resource.status === 'busy') {
+					resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
+				}
+			}
+		}, [page]);
+
 		let routerContextValue = useMemo(() => ({ navigate, reload, abort }), [navigate, reload, abort]);
+		let optionsContextValue = useMemo(
+			() => ({ delayLoadingMs, minimumLoadingMs, defaultFormMethod }),
+			[delayLoadingMs, minimumLoadingMs, defaultFormMethod],
+		);
 
 		return (
 			<routerContext.Provider value={routerContextValue}>
-				<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+				<optionsContext.Provider value={optionsContextValue}>
+					<navigationsContext.Provider value={navigations}>
+						<loadersContext.Provider value={page.loaders}>
+							<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+						</loadersContext.Provider>
+					</navigationsContext.Provider>
+				</optionsContext.Provider>
 			</routerContext.Provider>
 		);
 
 		function createPage(request, options) {
-			let { current, event, cache, sticky = stickyDefault, callbacks } = options ?? {};
-
-			// terminate other navigations?
+			let { cache, event, detail, history, callbacks } = options ?? {};
 
 			let render = createRender(config, request);
+			let result = { event, detail, render, request, history, callbacks };
 
-			let page = { request, render };
+			// Abort older pages
+			let newIntent = detail?.intent;
+			let oldIntent = pagesRef.current[0]?.detail?.intent;
+			let abortOtherPages = oldIntent !== FETCH || newIntent !== FETCH;
+			if (abortOtherPages) {
+				for (let otherPage of pagesRef.current) {
+					abortPage(otherPage, request);
+				}
+				pagesRef.current = [];
+			}
 
-			return page;
+			result.promise = createPromise();
+			result.actionPromise = createActionPromise();
+			result.loadersPromise = createLoadersPromise();
+
+			// Track the newly created page
+			// This must be done after createActionPromise, otherwise the action will mark this page dirty too
+			pagesRef.current.push(result);
+
+			async function createActionPromise() {
+				let intent = newIntent;
+				let method = request.method;
+				if (method === POST) {
+					// Mark all loaders of the current page
+					for (let loader of page.loaders) {
+						loader.dirty = true;
+					}
+
+					// Mark all loaders for all loading pages as dirty
+					for (let page of pagesRef.current) {
+						for (let loader of page.loaders) {
+							loader.dirty = true;
+						}
+					}
+
+					// Mark all loaders for all cached pages as dirty
+					for (let page of cacheRef.current) {
+						for (let loader of page.loaders) {
+							loader.dirty = true;
+						}
+					}
+
+					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
+					try {
+						result.action = createAction(render, { detail, scheduler });
+						result.actionResult = await Promise.race([result.promise, result.action.promise]);
+					} catch (error) {
+						let doneSymbol = Symbol();
+						let resultSymbol = await Promise.race([result.promise, doneSymbol]);
+						if (resultSymbol === doneSymbol) {
+							await result.action.resource.promise;
+
+							if (callbacks?.onError) {
+								callbacks.onError(error);
+							} else if (intent === FETCH && import.meta.env.dev) {
+								console.warn(`Please add an onError callback to the navigation for error`, error);
+							}
+
+							if (intent === TRANSITION) {
+								setError(error);
+							}
+						}
+					} finally {
+						result.timestamp = Date.now();
+					}
+
+					return result.actionResult;
+				}
+			}
+
+			async function createLoadersPromise() {
+				let loaders;
+				let useCache = request.cache !== 'reload' && request.cache !== 'no-store';
+				if (useCache) {
+					loaders = cache?.loaders;
+				}
+
+				let action = result.actionPromise;
+				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
+
+				result.loaders = createLoaders(render, { loaders, action, scheduler });
+
+				let loadersPromises = result.loaders.map(loader => loader.resource.promise);
+				let loadersResult = await Promise.race([result.promise, Promise.allSettled(loadersPromises)]);
+
+				return loadersResult;
+			}
+
+			return result;
 		}
 	};
 }
