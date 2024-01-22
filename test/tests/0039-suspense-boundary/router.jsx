@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import Routes, { Link, useLoader, useNavigations } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult, useNavigations } from '../../../source/index.js';
 import sleep from '../../utilities/sleep.js';
 
 let value = 0;
@@ -15,7 +15,7 @@ function Parent(props) {
 }
 
 function Child() {
-	let data = useLoader();
+	let data = useLoaderResult();
 
 	return <div id="value">{data}</div>;
 }

@@ -11,7 +11,9 @@ export function createAction(render, options) {
 	}
 
 	if (match == undefined) {
-		console.warn(`No action handler was found`);
+		if (import.meta.env.dev) {
+			console.warn(`No action handler was found`);
+		}
 	} else {
 		let action = match.config.action;
 		let request = render.request;
@@ -28,10 +30,10 @@ export function createAction(render, options) {
 			let actionType = typeof action;
 			if (actionType === 'function') {
 				let url = request.url;
-				let data = detail.data;
+				let data = detail?.data;
 				let search = new URLSearchParams(url.search);
-				let enctype = detail.enctype;
-				let formData = detail.formData;
+				let enctype = detail?.enctype;
+				let formData = detail?.formData;
 				let { splat, params } = match;
 
 				return action({ url, splat, params, search, data, formData, enctype, request });

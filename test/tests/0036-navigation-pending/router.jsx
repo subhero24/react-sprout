@@ -1,4 +1,4 @@
-import Routes, { Link, useLoader, useNavigations } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult, useNavigations } from '../../../source/index.js';
 import sleep from '../../utilities/sleep.js';
 
 let routeA = 0;
@@ -9,7 +9,7 @@ async function routeALoader() {
 }
 
 function RouteA() {
-	let data = useLoader();
+	let data = useLoaderResult();
 	let navigations = useNavigations();
 
 	let loading = navigations[0]?.loading;
@@ -39,7 +39,7 @@ async function routeBLoader() {
 }
 
 function RouteB() {
-	let data = useLoader();
+	let data = useLoaderResult();
 	let navigations = useNavigations();
 
 	return (

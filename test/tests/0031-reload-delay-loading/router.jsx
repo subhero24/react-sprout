@@ -1,9 +1,9 @@
-import Routes, { useLoader, useRouter } from '../../../source/index.js';
+import Routes, { useLoaderResult, useRouter } from '../../../source/index.js';
 
 import sleep from '../../utilities/sleep.js';
 
 function Parent() {
-	let data = useLoader();
+	let data = useLoaderResult();
 	let router = useRouter();
 
 	function handleClick() {

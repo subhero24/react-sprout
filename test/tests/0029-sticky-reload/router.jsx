@@ -1,8 +1,8 @@
-import Routes, { Link, useLoader } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult } from '../../../source/index.js';
 import sleep from '../../utilities/sleep.js';
 
 function Route(props) {
-	let data = useLoader();
+	let data = useLoaderResult();
 
 	return (
 		<div>

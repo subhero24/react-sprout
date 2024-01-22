@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import Routes, { Link, useLoader } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult } from '../../../source/index.js';
 
 class ErrorBoundary extends Component {
 	constructor(props) {
@@ -26,7 +26,7 @@ function Parent(props) {
 }
 
 function Child(props) {
-	let data = useLoader();
+	let data = useLoaderResult();
 
 	return 'child';
 }

@@ -20,6 +20,7 @@ import useImmutableCallback from './hooks/use-immutable-callback.js';
 import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import { routerContext } from './hooks/use-router.js';
+import { actionsContext } from './hooks/use-actions.js';
 import { loadersContext } from './hooks/use-loaders.js';
 import { optionsContext, defaultOptions } from './hooks/use-options.js';
 import { locationContext } from './hooks/use-location.js';
@@ -287,10 +288,10 @@ export default function Routes(...args) {
 			try {
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
-				await Promise.race([navigationPage.actionPromise, navigationPage.promise]);
-				await Promise.race([navigationPage.loadersPromise, navigationPage.promise, delayLoadingPromise]);
+				await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
 
-				await startTransition(sticky, () => {
+				startTransition(sticky, () => {
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
 					setPage(navigationPage, () => {
 						// Update history after navigationPage
@@ -318,15 +319,12 @@ export default function Routes(...args) {
 
 						onNavigateEnd?.(event);
 						onRouterNavigateEndCallback(event);
-
-						navigationPage.promise.resolve();
 					});
 				});
 			} catch (error) {
-				console.warn('aborted transitions');
+				// We use a promise to bail out if needed (ie abort), but this is not an error,
+				// so we catch it and do nothing
 			}
-
-			return navigationPage.promise;
 		});
 
 		let reload = useImmutableCallback(options => {
@@ -336,10 +334,14 @@ export default function Routes(...args) {
 		});
 
 		let abort = useImmutableCallback(() => {
-			for (let page of pagesRef.current) {
-				abortPage(page, { callback: onRouterAbortedCallback });
-			}
 			setPage(page);
+			setNavigations([]);
+
+			for (let page of pagesRef.current) {
+				abortPage(page, `Navigation to "${page.request.url}" was aborted`);
+			}
+
+			pagesRef.current = [];
 		});
 
 		// Clean suspense cache
@@ -400,18 +402,22 @@ export default function Routes(...args) {
 			<routerContext.Provider value={routerContextValue}>
 				<optionsContext.Provider value={optionsContextValue}>
 					<navigationsContext.Provider value={navigations}>
-						<loadersContext.Provider value={page.loaders}>
-							<locationContext.Provider value={location}>{elements}</locationContext.Provider>
-						</loadersContext.Provider>
+						<actionsContext.Provider value={page.action}>
+							<loadersContext.Provider value={page.loaders}>
+								<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+							</loadersContext.Provider>
+						</actionsContext.Provider>
 					</navigationsContext.Provider>
 				</optionsContext.Provider>
 			</routerContext.Provider>
 		);
 
-		function createPage(request, options) {
+		function createPage(requested, options) {
 			let { cache, event, detail, history, callbacks } = options ?? {};
 
-			let render = createRender(config, request);
+			let render = createRender(config, requested);
+			let request = render.request;
+
 			let result = { event, detail, render, request, history, callbacks };
 
 			// Abort older pages
@@ -431,15 +437,19 @@ export default function Routes(...args) {
 
 			// Track the newly created page
 			// This must be done after createActionPromise, otherwise the action will mark this page dirty too
-			pagesRef.current.push(result);
+			if (event) {
+				pagesRef.current.push(result);
+			}
 
 			async function createActionPromise() {
-				let intent = newIntent;
 				let method = request.method;
 				if (method === POST) {
-					// Mark all loaders of the current page
-					for (let loader of page.loaders) {
-						loader.dirty = true;
+					let mounted = mountedRef.current;
+					if (mounted) {
+						// Mark all loaders of the current page
+						for (let loader of page.loaders) {
+							loader.dirty = true;
+						}
 					}
 
 					// Mark all loaders for all loading pages as dirty
@@ -457,30 +467,24 @@ export default function Routes(...args) {
 					}
 
 					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
-					try {
-						result.action = createAction(render, { detail, scheduler });
-						result.actionResult = await Promise.race([result.promise, result.action.promise]);
-					} catch (error) {
-						let doneSymbol = Symbol();
-						let resultSymbol = await Promise.race([result.promise, doneSymbol]);
-						if (resultSymbol === doneSymbol) {
-							await result.action.resource.promise;
+					result.action = createAction(render, { detail, scheduler });
+					result.action.promise.catch(actionError);
+					result.action.promise.finally(actionFinished);
 
-							if (callbacks?.onError) {
-								callbacks.onError(error);
-							} else if (intent === FETCH && import.meta.env.dev) {
-								console.warn(`Please add an onError callback to the navigation for error`, error);
-							}
+					return await Promise.race([result.promise, result.action.promise]);
 
-							if (intent === TRANSITION) {
-								setError(error);
-							}
+					function actionError(error) {
+						if (event) {
+							callbacks?.onError?.(event, error);
+							onRouterErrorCallback(event, error);
+						} else {
+							setError(error);
 						}
-					} finally {
-						result.timestamp = Date.now();
 					}
 
-					return result.actionResult;
+					function actionFinished() {
+						result.timestamp = Date.now();
+					}
 				}
 			}
 
@@ -494,12 +498,11 @@ export default function Routes(...args) {
 				let action = result.actionPromise;
 				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
-				result.loaders = createLoaders(render, { loaders, action, scheduler });
+				result.loaders = createLoaders(render, { action, loaders, scheduler });
 
-				let loadersPromises = result.loaders.map(loader => loader.resource.promise);
-				let loadersResult = await Promise.race([result.promise, Promise.allSettled(loadersPromises)]);
-
-				return loadersResult;
+				let loaderPromises = result.loaders.map(loader => loader.resource.promise);
+				let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
+				return loaderResults;
 			}
 
 			return result;

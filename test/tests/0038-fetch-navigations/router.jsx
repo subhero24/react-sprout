@@ -1,8 +1,8 @@
-import Routes, { Form, useLoader } from '../../../source/index.js';
+import Routes, { Form, useLoaderResult } from '../../../source/index.js';
 
 let value = 0;
 async function action() {
-	++value;
+	return ++value;
 }
 
 async function loader() {
@@ -10,7 +10,7 @@ async function loader() {
 }
 
 function Route() {
-	let data = useLoader();
+	let data = useLoaderResult();
 
 	return (
 		<>

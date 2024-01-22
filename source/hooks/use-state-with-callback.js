@@ -2,23 +2,25 @@ import { useInsertionEffect, useRef, useState } from 'react';
 import useImmutableCallback from './use-immutable-callback';
 
 export default function useStateWithCallback(initialState) {
+	let stateRef = useRef();
 	let callbackRef = useRef();
 	let [state, setState] = useState(initialState);
 
-	let setStateWithCallback = useImmutableCallback((newstate, callback) => {
-		if (typeof newstate === 'function') newstate = newstate(state);
-
-		if (state === newstate) {
-			callback?.();
-		} else {
-			callbackRef.current = callback;
-			setState(newstate);
+	let setStateWithCallback = useImmutableCallback((newState, callback) => {
+		if (typeof newState === 'function') {
+			newState = newState(state);
 		}
+
+		setState(newState);
+
+		stateRef.current = newState;
+		callbackRef.current = callback;
 	});
 
 	useInsertionEffect(() => {
-		callbackRef.current?.();
-		callbackRef.current = undefined;
+		if (state === stateRef.current) {
+			callbackRef.current?.();
+		}
 	}, [state]);
 
 	return [state, setStateWithCallback];

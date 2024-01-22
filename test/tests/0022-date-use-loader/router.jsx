@@ -1,7 +1,7 @@
-import Routes, { useLoader } from '../../../source/index.js';
+import Routes, { useLoaderResult } from '../../../source/index.js';
 
 function Route() {
-	let data = useLoader();
+	let data = useLoaderResult();
 
 	return data;
 }

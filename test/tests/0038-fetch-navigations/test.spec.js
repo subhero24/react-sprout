@@ -18,8 +18,6 @@ Test('fetch navigation should execute action and reload', async () => {
 
 		await page.click('button');
 
-		await sleep();
-
 		let valueAfter = await page.$eval('#value', node => node.innerText);
 		if (valueAfter !== '1') {
 			throw new Error('value after the action should be 1');

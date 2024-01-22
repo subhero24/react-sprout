@@ -1,7 +1,7 @@
-import Routes, { Link, useLoader } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult } from '../../../source/index.js';
 
 function Parent(props) {
-	let parentCount = useLoader();
+	let parentCount = useLoaderResult();
 
 	return (
 		<div>
@@ -21,7 +21,7 @@ function parentLoader() {
 }
 
 function ChildA() {
-	let childACount = useLoader();
+	let childACount = useLoaderResult();
 
 	return <span id="child-a">{childACount}</span>;
 }
@@ -32,7 +32,7 @@ function childALoader() {
 }
 
 function ChildB() {
-	let childBCount = useLoader();
+	let childBCount = useLoaderResult();
 
 	return <span id="child-b">{childBCount}</span>;
 }
