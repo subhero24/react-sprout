@@ -1,6 +1,6 @@
 import Redirect, { RedirectError } from './redirect.js';
 
-import { resolvePaths } from './path.js';
+import { pathParts, resolvePaths } from './path.js';
 import { isEquivalentObject } from './object.js';
 import { matchQuery, filterQuery } from './query.js';
 import { matchDescriptor, interpolateDescriptor } from './descriptor.js';
@@ -10,10 +10,12 @@ export function createMatch(configs, requested, context) {
 
 	let location = new URL(requested.url);
 	for (let config of configs) {
-		let strict = config.children == undefined && config.pathname !== '';
-		let pathnameDescriptor = resolvePaths(root, config.pathname);
+		let [pathPathname, pathSearch] = pathParts(config.path);
 
-		let matchedSearch = matchQuery(config.search, location.search);
+		let strict = config.children == undefined && pathPathname !== '';
+		let pathnameDescriptor = resolvePaths(root, pathPathname);
+
+		let matchedSearch = matchQuery(pathSearch, location.search);
 		let matchedDescriptor = matchDescriptor(pathnameDescriptor, location.pathname, strict);
 		if (matchedDescriptor && matchedSearch) {
 			let { base, pathname, rest, splat, params: elementParams } = matchedDescriptor;
@@ -35,7 +37,7 @@ export function createMatch(configs, requested, context) {
 			}
 
 			let url;
-			let search = filterQuery(location.search, config.search);
+			let search = filterQuery(location.search, pathSearch);
 			let searchKeys = [...search.keys()];
 			if (searchKeys.length) {
 				url = new URL(pathname + '?' + search, location);

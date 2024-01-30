@@ -29,8 +29,6 @@ export function createConfig(root, options) {
 		return sortedElements.map(element => {
 			let { path, root, loader, action, children, ...other } = element.props;
 
-			let [pathname, search] = pathParts(path);
-
 			if (action === true) action = createConfigAction(prefix);
 			if (loader === true) loader = createConfigLoader(prefix, level);
 
@@ -58,17 +56,7 @@ export function createConfig(root, options) {
 				}
 			}
 
-			return {
-				type: element.type,
-				root,
-				level,
-				loader,
-				action,
-				search,
-				pathname,
-				...other,
-				children: childConfigs,
-			};
+			return { ...other, type: element.type, path, root, loader, action, children: childConfigs };
 		});
 	}
 

@@ -256,14 +256,13 @@ export default function Routes(...args) {
 			onRouterNavigateStartCallback(event);
 
 			let callbacks = { onError, onAborted, onNavigateEnd };
-			let navigationPage = createPage(request, { cache: page, event, detail, sticky, callbacks });
+			let navigationPage = createPage(request, { cache: page, event, detail, callbacks });
 
+			let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
 			let concurrent = sticky || intent === FETCH;
 			if (concurrent) {
-				let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
-
-				let concurrent = intent === FETCH && navigations[0]?.detail?.intent === FETCH;
-				if (concurrent) {
+				let concurrency = intent === FETCH && navigations[0]?.detail?.intent === FETCH;
+				if (concurrency) {
 					setNavigations(navigations => [...navigations, navigation]);
 				} else {
 					setNavigations([navigation]);
@@ -283,6 +282,8 @@ export default function Routes(...args) {
 						});
 					}, delayLoadingMs);
 				}
+			} else {
+				setNavigations([navigation]);
 			}
 
 			try {
@@ -333,15 +334,24 @@ export default function Routes(...args) {
 			navigate({ reload: true, sticky, onCancel, onAborted, onNavigate, onNaivgateEnd, onNavigateStart });
 		});
 
-		let abort = useImmutableCallback(() => {
+		let abort = useImmutableCallback(abortion => {
 			setPage(page);
-			setNavigations([]);
 
-			for (let page of pagesRef.current) {
-				abortPage(page, `Navigation to "${page.request.url}" was aborted`);
+			let abortionPages;
+			let abortionDetail = abortion.detail ?? abortion;
+			if (abortionDetail) {
+				abortionPages = [pagesRef.current.find(page => page.detail === abortionDetail)];
+			} else {
+				abortionPages = pagesRef.current;
 			}
 
-			pagesRef.current = [];
+			for (let abortionPage of abortionPages) {
+				abortPage(abortionPage, `Navigation to "${abortionPage.request.url}" was aborted`);
+			}
+
+			setNavigations(navigations =>
+				navigations.filter(navigation => !abortionPages.find(abortion => abortion.detail === navigation.detail)),
+			);
 		});
 
 		// Clean suspense cache
@@ -471,7 +481,7 @@ export default function Routes(...args) {
 					result.action.promise.catch(actionError);
 					result.action.promise.finally(actionFinished);
 
-					return await Promise.race([result.promise, result.action.promise]);
+					return Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
 
 					function actionError(error) {
 						if (event) {
@@ -500,9 +510,13 @@ export default function Routes(...args) {
 
 				result.loaders = createLoaders(render, { action, loaders, scheduler });
 
-				let loaderPromises = result.loaders.map(loader => loader.resource.promise);
-				let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
-				return loaderResults;
+				try {
+					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
+					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
+					return loaderResults;
+				} catch (error) {
+					console.warn(error);
+				}
 			}
 
 			return result;

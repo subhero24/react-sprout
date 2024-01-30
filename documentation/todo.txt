@@ -10,4 +10,4 @@ clean up pages after suspended mount?
 Add redirects from action?
 Add response result from action?
 
-Split pagesRef into currentPageRef and busyPagesRef?
+Split pagesRef into transitionRef and concurrentRef?

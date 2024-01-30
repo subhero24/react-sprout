@@ -1,10 +1,10 @@
 import { useMemo, createElement, forwardRef } from 'react';
 
-import Form from '../components/form.jsx';
+import Link from '../components/link.jsx';
 
-import useNavigationsScope from './use-navigations-scope.js';
+import useNavigationsScope from './use-navigations-scope';
 
-export default function useForm() {
+export default function useLink() {
 	let [navigations, busy, loading, { addNavigationDetail, removeNavigationDetail }] = useNavigationsScope();
 
 	let Component = useMemo(() => {
@@ -29,7 +29,7 @@ export default function useForm() {
 				removeNavigationDetail(event.detail);
 			}
 
-			return createElement(Form, {
+			return createElement(Link, {
 				ref,
 				...props,
 				onError,

@@ -1,11 +1,5 @@
-import { useContext, createContext } from 'react';
-
-export let paramsContext = createContext();
+import useMatch from './use-match.js';
 
 export default function useParams() {
-	let params = useContext(paramsContext);
-	if (params == undefined) {
-		console.warn('The "useParams" hook must be used inside a <Router> component.');
-	}
-	return params ?? {};
+	return useMatch()?.params ?? {};
 }
