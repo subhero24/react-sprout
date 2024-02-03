@@ -69,9 +69,9 @@ export default function Routes(...args) {
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
 
-		// Keep track of all loading pages. The current page in pageRef, and concurrent pages in pagesRef
-		let pageRef = useRef();
-		let pagesRef = useRef([]);
+		let pageRef = useRef(); // this is for the current page
+		let otherRef = useRef(); // this is for the next page
+		let pagesRef = useRef([]); // this is for the concurrent fetch navigation pages
 
 		let mountedRef = useMountedRef();
 		let mounted = mountedRef.current;
@@ -259,8 +259,10 @@ export default function Routes(...args) {
 			let navigationPage = createPage(request, { cache: page, event, detail, callbacks });
 
 			let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
-			let concurrent = sticky || intent === FETCH;
-			if (concurrent) {
+			let exclusive = !sticky && intent !== FETCH;
+			if (exclusive) {
+				setNavigations([navigation]);
+			} else {
 				let concurrency = intent === FETCH && navigations[0]?.detail?.intent === FETCH;
 				if (concurrency) {
 					setNavigations(navigations => [...navigations, navigation]);
@@ -282,8 +284,6 @@ export default function Routes(...args) {
 						});
 					}, delayLoadingMs);
 				}
-			} else {
-				setNavigations([navigation]);
 			}
 
 			try {
@@ -334,24 +334,33 @@ export default function Routes(...args) {
 			navigate({ reload: true, sticky, onCancel, onAborted, onNavigate, onNaivgateEnd, onNavigateStart });
 		});
 
-		let abort = useImmutableCallback(abortion => {
-			setPage(page);
+		let abort = useImmutableCallback(aborted => {
+			let otherPage = otherRef.current;
+			let abortedDetail = aborted?.detail ?? aborted;
+			if (abortedDetail) {
+				setPage(page);
+				setNavigations(navigations.filter(navigation => navigation.detail !== abortedDetail));
 
-			let abortionPages;
-			let abortionDetail = abortion.detail ?? abortion;
-			if (abortionDetail) {
-				abortionPages = [pagesRef.current.find(page => page.detail === abortionDetail)];
+				if (otherPage && otherPage.detail === abortedDetail) {
+					abortPage(otherPage, `Navigation to "${otherPage.request.url}" was aborted`);
+				} else {
+					let abortedPage = pagesRef.current.find(page => page.detail === abortedDetail);
+					if (abortedPage) {
+						abortPage(abortedPage, `Navigation to "${abortedPage.request.url}" was aborted`);
+					}
+				}
 			} else {
-				abortionPages = pagesRef.current;
-			}
+				setPage(page);
+				setNavigations([]);
 
-			for (let abortionPage of abortionPages) {
-				abortPage(abortionPage, `Navigation to "${abortionPage.request.url}" was aborted`);
-			}
+				if (otherPage) {
+					abortPage(otherPage, `Navigation to "${otherPage.request.url}" was aborted`);
+				}
 
-			setNavigations(navigations =>
-				navigations.filter(navigation => !abortionPages.find(abortion => abortion.detail === navigation.detail)),
-			);
+				for (let page of pagesRef.current) {
+					abortPage(page, `Navigation to "${page.request.url}" was aborted`);
+				}
+			}
 		});
 
 		// Clean suspense cache
@@ -370,7 +379,8 @@ export default function Routes(...args) {
 			}
 
 			pageRef.current = page;
-		}, [page, pageRef, abortPage]);
+			otherRef.current = undefined;
+		}, [page, pageRef, otherRef, abortPage]);
 
 		// Update page on popstate
 		// Use insertion effect in case someone navigates with the history in a useEffect or useLayoutEffect
@@ -426,29 +436,35 @@ export default function Routes(...args) {
 			let { cache, event, detail, history, callbacks } = options ?? {};
 
 			let render = createRender(config, requested);
+			let intent = detail?.intent;
 			let request = render.request;
 
 			let result = { event, detail, render, request, history, callbacks };
-
-			// Abort older pages
-			let newIntent = detail?.intent;
-			let oldIntent = pagesRef.current[0]?.detail?.intent;
-			let abortOtherPages = oldIntent !== FETCH || newIntent !== FETCH;
-			if (abortOtherPages) {
-				for (let otherPage of pagesRef.current) {
-					abortPage(otherPage, request);
-				}
-				pagesRef.current = [];
-			}
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();
 			result.loadersPromise = createLoadersPromise();
 
-			// Track the newly created page
-			// This must be done after createActionPromise, otherwise the action will mark this page dirty too
-			if (event) {
+			if (intent === FETCH) {
+				let otherPage = otherRef.current;
+				if (otherPage) {
+					abortPage(otherPage, requested);
+				}
+
+				otherRef.current = undefined;
 				pagesRef.current.push(result);
+			} else {
+				let otherPage = otherRef.current;
+				if (otherPage) {
+					abortPage(otherPage, requested);
+				}
+
+				for (let page of pagesRef.current) {
+					abortPage(page, requested);
+				}
+
+				pagesRef.current = [];
+				otherRef.current = result;
 			}
 
 			async function createActionPromise() {
@@ -456,20 +472,24 @@ export default function Routes(...args) {
 				if (method === POST) {
 					let mounted = mountedRef.current;
 					if (mounted) {
-						// Mark all loaders of the current page
 						for (let loader of page.loaders) {
 							loader.dirty = true;
 						}
 					}
 
-					// Mark all loaders for all loading pages as dirty
+					let otherPage = otherRef.current;
+					if (otherPage) {
+						for (let loader of otherPage.loaders) {
+							loader.dirty = true;
+						}
+					}
+
 					for (let page of pagesRef.current) {
 						for (let loader of page.loaders) {
 							loader.dirty = true;
 						}
 					}
 
-					// Mark all loaders for all cached pages as dirty
 					for (let page of cacheRef.current) {
 						for (let loader of page.loaders) {
 							loader.dirty = true;
@@ -499,13 +519,14 @@ export default function Routes(...args) {
 			}
 
 			async function createLoadersPromise() {
+				let action = result.actionPromise;
+
 				let loaders;
 				let useCache = request.cache !== 'reload' && request.cache !== 'no-store';
 				if (useCache) {
 					loaders = cache?.loaders;
 				}
 
-				let action = result.actionPromise;
 				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
 				result.loaders = createLoaders(render, { action, loaders, scheduler });
@@ -513,6 +534,7 @@ export default function Routes(...args) {
 				try {
 					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
 					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
+
 					return loaderResults;
 				} catch (error) {
 					console.warn(error);

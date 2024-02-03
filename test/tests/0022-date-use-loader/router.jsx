@@ -10,6 +10,6 @@ async function loader() {
 	return 'data';
 }
 
-let Router = Routes(<Route path="route" loader={loader} />);
+let Router = Routes(<Route loader={loader} />);
 
 export default Router;

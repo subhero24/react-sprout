@@ -3,7 +3,7 @@ import { useContext, createContext } from 'react';
 import { GET } from '../constants.js';
 
 export const defaultOptions = {
-	delayLoadingMs: 50,
+	delayLoadingMs: 30,
 	minimumLoadingMs: 500,
 	defaultFormMethod: GET,
 };

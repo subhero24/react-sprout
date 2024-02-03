@@ -19,7 +19,7 @@ function RouteA() {
 }
 
 async function loader() {
-	await sleep(300);
+	await sleep(3000);
 }
 
 function RouteB() {
