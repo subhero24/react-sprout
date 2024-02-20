@@ -24,7 +24,7 @@ export function createConfig(root, options) {
 		let validElements = elements.filter(verifyNoElementErrors);
 		let sortedElements = sortElementsByDescriptorScore(validElements);
 
-		elements.forEach(verifyNoElementWarnings);
+		validElements.forEach(verifyNoElementWarnings);
 
 		return sortedElements.map(element => {
 			let { path, root, loader, action, children, ...other } = element.props;

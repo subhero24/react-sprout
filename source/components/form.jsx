@@ -5,8 +5,7 @@ import useOptions from '../hooks/use-options.js';
 import useResolve from '../hooks/use-resolve.js';
 
 import { GET } from '../constants.js';
-
-const defaultEnctype = 'application/x-www-form-urlencoded';
+import { URLENCODED } from '../constants.js';
 
 function Form(props, ref) {
 	let options = useOptions();
@@ -54,7 +53,7 @@ function Form(props, ref) {
 
 				let action = submitter?.getAttribute('formaction') ?? resolvedPath;
 				let method = submitter?.getAttribute('formmethod') ?? form.getAttribute('method') ?? GET;
-				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? defaultEnctype;
+				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
 				let formData = new FormData(form, submitter);
 
 				// Resolve always returns an absolute path, so we can use the components router without a problem

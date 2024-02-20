@@ -29,14 +29,13 @@ export function createAction(render, options) {
 		async function createActionPromise() {
 			let actionType = typeof action;
 			if (actionType === 'function') {
-				let url = request.url;
+				let url = new URL(request.url);
 				let data = detail?.data;
-				let search = new URLSearchParams(url.search);
 				let enctype = detail?.enctype;
 				let formData = detail?.formData;
 				let { splat, params } = match;
 
-				return action({ url, splat, params, search, data, formData, enctype, request });
+				return action({ url, splat, params, data, formData, enctype, request });
 			} else {
 				return action;
 			}

@@ -21,7 +21,7 @@ export function awaitScheduler(scheduler) {
 
 			let now = Date.now();
 			let diff = now - timestamp;
-			if (diff <= delayLoadingMs || diff > delayLoadingMs + minimumLoadingMs) {
+			if (diff < delayLoadingMs || diff > delayLoadingMs + minimumLoadingMs) {
 				resolve();
 			} else {
 				setTimeout(resolve, delayLoadingMs + minimumLoadingMs - diff);

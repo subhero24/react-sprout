@@ -37,18 +37,18 @@ export function createMatch(configs, requested, context) {
 			}
 
 			let url;
-			let search = filterQuery(location.search, pathSearch);
-			let searchKeys = [...search.keys()];
+			let searchParams = filterQuery(location.search, pathSearch);
+			let searchKeys = [...searchParams.keys()];
 			if (searchKeys.length) {
-				url = new URL(pathname + '?' + search, location);
+				url = new URL(pathname + '?' + searchParams, location);
 			} else {
 				url = new URL(pathname, location);
 			}
 
-			let match = { config, url, base, rest, splat, params, search };
+			let match = { config, url, base, rest, splat, params };
 
 			let children = config.children;
-			if (children) {
+			if (children?.length) {
 				let root = base;
 				let matches = createMatch(children, requested, { root, params });
 				if (matches == undefined) {

@@ -29,6 +29,7 @@ import { navigationsContext } from './hooks/use-navigations.js';
 import { GET, POST } from './constants.js';
 import { PUSH, REPLACE } from './constants.js';
 import { FETCH, RELOAD, TRANSITION } from './constants.js';
+import { URLENCODED } from './constants.js';
 
 import sleep from '../test/utilities/sleep.js';
 import startTransition from './utilities/transition.js';
@@ -224,10 +225,12 @@ export default function Routes(...args) {
 				return;
 			}
 
-			let detail = { url, type, state, title, intent, method, data, formData, enctype };
-			let event = new CustomEvent('navigate', { detail, cancelable: true });
 			let cached = reload ? 'reload' : 'default';
-			let request = new Request(url, { body, method, cache: cached });
+			let headers = enctype ? { 'Content-Type': enctype } : {};
+			let request = new Request(url, { method, headers, body, cache: cached });
+
+			let detail = { request, type, state, title, intent };
+			let event = new CustomEvent('navigate', { detail, cancelable: true });
 
 			// When using an empty FormData as Request.body will result
 			// in chrome erroring with a TypeError: failed to fetch
@@ -254,9 +257,6 @@ export default function Routes(...args) {
 
 			onNavigateStart?.(event);
 			onRouterNavigateStartCallback(event);
-
-			let callbacks = { onError, onAborted, onNavigateEnd };
-			let navigationPage = createPage(request, { cache: page, event, detail, callbacks });
 
 			let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
 			let exclusive = !sticky && intent !== FETCH;
@@ -286,11 +286,27 @@ export default function Routes(...args) {
 				}
 			}
 
+			let callbacks = { onError, onAborted, onNavigateEnd };
+			let navigationPage = createPage(request, { cache: page, event, detail, callbacks });
+
 			try {
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
 				await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
 				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
+
+				// The page loader schedulers by default also include the action time, because if the page
+				// was initally loaded with a POST request, the page was already rendered while executing the loaders
+				// If a new navigation is initiated on a rendered page itself, we wait for the action to complete to render
+				// the new page. So the schedulers should really not include the action anymore.
+				// So before rendering the page, we reset the schedulers so that the minimumLoadingMs of the loader
+				// schedulers start fresh when the new page is rendered.
+
+				// We can not do this in an effect because it still resolves the suspended component before running the effect
+				// flashing the loading indicator
+				for (let loader of navigationPage.loaders) {
+					resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
+				}
 
 				startTransition(sticky, () => {
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
@@ -433,18 +449,18 @@ export default function Routes(...args) {
 		);
 
 		function createPage(requested, options) {
-			let { cache, event, detail, history, callbacks } = options ?? {};
+			let { cache, event, callbacks } = options ?? {};
 
 			let render = createRender(config, requested);
-			let intent = detail?.intent;
 			let request = render.request;
 
-			let result = { event, detail, render, request, history, callbacks };
+			let result = { request, event, render, callbacks };
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();
 			result.loadersPromise = createLoadersPromise();
 
+			let intent = event?.detail.intent;
 			if (intent === FETCH) {
 				let otherPage = otherRef.current;
 				if (otherPage) {
@@ -497,7 +513,7 @@ export default function Routes(...args) {
 					}
 
 					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
-					result.action = createAction(render, { detail, scheduler });
+					result.action = createAction(render, { request, scheduler });
 					result.action.promise.catch(actionError);
 					result.action.promise.finally(actionFinished);
 

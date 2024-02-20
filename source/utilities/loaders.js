@@ -27,9 +27,9 @@ export function createLoaders(render, options = {}) {
 
 					let loaderType = typeof loader;
 					if (loaderType === 'function') {
-						let { url, splat, params, search } = match;
+						let { url, splat, params } = match;
 
-						return loader({ url, splat, params, search, request });
+						return loader({ url, splat, params, request });
 					} else {
 						return loader;
 					}
