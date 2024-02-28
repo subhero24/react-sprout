@@ -2,7 +2,7 @@ import Routes, { Form } from '../../../../source/index.js';
 
 function RouteA() {
 	return (
-		<Form action="/b" method="post">
+		<Form action="/b" method="post" state={actionResult => ({ y: actionResult.x * 2 })}>
 			<button>Navigate to b</button>
 		</Form>
 	);
@@ -12,19 +12,14 @@ function RouteB() {
 	return 'b';
 }
 
-function RouteC() {
-	return 'c';
-}
-
 async function action() {
-	return Response.redirect('/c', 303);
+	return { x: 1 };
 }
 
 let Router = Routes(
 	<>
 		<RouteA path="a" />
 		<RouteB path="b" action={action} />
-		<RouteC path="c" />
 	</>,
 );
 

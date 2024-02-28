@@ -1,9 +1,6 @@
-import HttpError from 'http-errors';
-
 import { joinPaths, pathParts, resolvePaths } from './path.js';
 import { childrenToArray } from './children.js';
 import { descriptorScore, descriptorStructure, equivalentDescriptors } from './descriptor.js';
-import { development } from './environment.js';
 
 import configConsole from './console.js';
 

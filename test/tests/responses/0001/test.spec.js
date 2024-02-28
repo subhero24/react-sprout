@@ -10,7 +10,7 @@ Test('returning an ok response from a loader', async () => {
 	await setup(currentDirectory, '/', async function ({ page }) {
 		let render = await page.$eval('#root', root => root.innerHTML);
 		if (render !== '{"some":{"json":"value"}}') {
-			throw new Error('iit should have used the response data');
+			throw new Error('it should have used the response data');
 		}
 	});
 });

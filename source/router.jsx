@@ -1,5 +1,6 @@
 import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { createData } from './utilities/response.js';
 import { createConfig } from './utilities/config.js';
 import { createRender } from './utilities/render.js';
 import { createAction } from './utilities/action.js';
@@ -309,15 +310,33 @@ export default function Routes(...args) {
 			try {
 				let callbacks = { onError, onAborted, onNavigateEnd };
 				let navigationPage = createPage(request, { cache: page, event, callbacks });
+				let navigationResource = navigationPage.action?.resource;
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
-				await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
-				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
+				try {
+					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+				} catch (error) {
+					if (error instanceof Response && error.status === 303) {
+						let location = error.headers.get('location');
+						let redirect = new Request(location);
+
+						navigationPage = createPage(redirect, { cache: page, event, callbacks });
+					} else {
+						throw error;
+					}
+				}
 
 				// Setting a function as state allows late binding to the action result
 				if (typeof state === 'function') {
-					state = state(navigationPage.action?.resource.result);
+					let actionResult = navigationResource.result;
+					if (actionResult instanceof Response) {
+						actionResult = await createData(actionResult);
+					}
+
+					state = await state(actionResult);
 				}
+
+				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
 
 				// The page loader schedulers by default also include the action time, because if the page
 				// was initally loaded with a POST request, the page was already rendered while executing the loaders
@@ -531,18 +550,19 @@ export default function Routes(...args) {
 					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
 					result.action = createAction(render, { event, transform, scheduler });
-					result.action.promise.catch(actionError).finally(actionFinished);
 
-					return Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
-
-					function actionError(error) {
+					try {
+						await Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
+					} catch (error) {
 						if (event) {
-							callbacks?.onError?.(event, error);
-							onRouterErrorCallback(event, error);
-						}
-					}
+							if (error instanceof Response === false || error.status >= 400) {
+								callbacks?.onError?.(event, error);
+								onRouterErrorCallback(event, error);
+							}
 
-					function actionFinished() {
+							throw error;
+						}
+					} finally {
 						result.timestamp = Date.now();
 					}
 				}
@@ -561,16 +581,16 @@ export default function Routes(...args) {
 
 				result.loaders = createLoaders(render, { action, loaders, scheduler });
 
-				try {
-					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
-					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
+				// try {
+				let loaderPromises = result.loaders.map(loader => loader.resource.promise);
+				let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
 
-					return loaderResults;
-				} catch (error) {
-					if (import.meta.env.dev) {
-						console.warn(error);
-					}
-				}
+				return loaderResults;
+				// } catch (error) {
+				// 	if (import.meta.env.dev) {
+				// 		console.warn(error);
+				// 	}
+				// }
 			}
 
 			return result;

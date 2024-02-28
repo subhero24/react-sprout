@@ -21,7 +21,6 @@ export function createAction(render, options) {
 		let request = render.request;
 
 		let promise = createActionPromise();
-
 		let resource = createResource(promise, scheduler);
 		let controller = new AbortController();
 
