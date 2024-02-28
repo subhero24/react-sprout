@@ -1,12 +1,12 @@
-import Routes, { Link, useLoaderResult, useRouter } from '../../../../source/index.js';
+import Routes, { Link, useLoaderResult, useAbort, useLink } from '../../../../source/index.js';
 
 import sleep from '../../../utilities/sleep.js';
 
 function RouteA() {
-	let router = useRouter();
+	let abort = useAbort();
 
 	function handleAbort() {
-		router.abort();
+		abort();
 	}
 
 	return (

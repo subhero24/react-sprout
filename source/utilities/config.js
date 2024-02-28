@@ -12,7 +12,7 @@ export function createConfig(root, options) {
 
 	let duplicates = [];
 
-	if (root == undefined && development) {
+	if (import.meta.env.dev && root == undefined) {
 		console.warn(`No routes are specified. The router will not render anything.`);
 	}
 
@@ -45,7 +45,7 @@ export function createConfig(root, options) {
 
 				let structure = descriptorStructure(descriptorPath);
 				let duplicate = duplicates.find(duplicate => equivalentDescriptors(duplicate.structure, structure));
-				if (duplicate) {
+				if (duplicate && import.meta.env.dev) {
 					configConsole.warn(
 						`There are two routes which will match the same url. The second route will never render.`,
 						root,
@@ -68,7 +68,7 @@ export function createConfig(root, options) {
 		try {
 			assertNoElementErrors(element);
 		} catch (error) {
-			if (error instanceof RouterConfigError && development) {
+			if (import.meta.env.dev && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, root, [element]);
 				return false;
 			} else {
@@ -91,7 +91,7 @@ export function createConfig(root, options) {
 		try {
 			assertNoElementWarnings(element);
 		} catch (error) {
-			if (error instanceof RouterConfigError && development) {
+			if (import.meta.env.dev && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, root, [element]);
 			} else {
 				throw error;
@@ -179,11 +179,11 @@ export function createConfigLoader(prefix, level) {
 }
 
 export function createConfigAction(prefix) {
-	return async function action({ formData, request }) {
+	return async function action({ request }) {
 		let url = new URL(request.url);
 		let response = await fetch(`${prefix}${url.pathname}${url.search}`, {
 			method: 'POST',
-			body: formData,
+			body: request.body,
 			headers: { Accept: 'application/json' },
 		});
 

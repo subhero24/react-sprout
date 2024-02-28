@@ -5,6 +5,10 @@ import useNavigationsScope from './use-navigations-scope.js';
 
 export default function useNavigate() {
 	let router = useRouter();
+	if (router == undefined) {
+		throw new Error(`The useNavigate hook can only be used inside a Router component.`);
+	}
+
 	let resolve = useResolve();
 	let [navigations, busy, loading, { addNavigationDetail, removeNavigationDetail }] = useNavigationsScope();
 

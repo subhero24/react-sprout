@@ -1,11 +1,6 @@
 use URL.canParse instead of try catching 
 
-Query params that are not specified should not turn up in location from useLocation
-
 Nesting routers
-
-
-implement useQuery
 
 Concurrency algo abort
 

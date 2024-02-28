@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
-import Routes, { useLoaderResult, useRouter, useNavigations } from '../../../../source/index.js';
+import Routes, { useLoaderResult, useNavigate } from '../../../../source/index.js';
 import sleep from '../../../utilities/sleep.js';
 
 function RouteA() {
-	let router = useRouter();
+	let [navigate] = useNavigate();
 
 	function handleClick() {
-		router.navigate('b');
+		navigate('/b');
 	}
 
 	return (

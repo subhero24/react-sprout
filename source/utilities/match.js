@@ -36,16 +36,16 @@ export function createMatch(configs, requested, context) {
 				throw new RedirectError(`Redirecting from ${location} to ${target}`, target, config.status);
 			}
 
-			let url;
+			let request;
 			let searchParams = filterQuery(location.search, pathSearch);
 			let searchKeys = [...searchParams.keys()];
 			if (searchKeys.length) {
-				url = new URL(pathname + '?' + searchParams, location);
+				request = new Request(new URL(pathname + '?' + searchParams, location));
 			} else {
-				url = new URL(pathname, location);
+				request = new Request(new URL(pathname, location));
 			}
 
-			let match = { config, url, base, rest, splat, params };
+			let match = { config, request, base, rest, splat, params };
 
 			let children = config.children;
 			if (children?.length) {
@@ -70,7 +70,7 @@ export function isEquivalentMatch(matchA, matchB) {
 	if (sameComponent) {
 		let sameLoader = matchA.config.loader === matchB.config.loader;
 		if (sameLoader) {
-			let sameUrl = matchA.url.href === matchB.url.href;
+			let sameUrl = matchA.request.url === matchB.request.url;
 			if (sameUrl) {
 				// We still need to check splat and params, even though the url is the same
 				// because the matched path descriptor could be different, effectively changing params and/or splat

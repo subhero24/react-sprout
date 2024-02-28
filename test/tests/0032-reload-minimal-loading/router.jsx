@@ -1,13 +1,13 @@
-import Routes, { useLoaderResult, useRouter } from '../../../source/index.js';
+import Routes, { useLoaderResult, useNavigate } from '../../../source/index.js';
 
 import sleep from '../../utilities/sleep.js';
 
 function Parent() {
 	let data = useLoaderResult();
-	let router = useRouter();
+	let [navigate] = useNavigate();
 
 	function handleClick() {
-		router.reload();
+		navigate({ reload: true });
 	}
 
 	return (

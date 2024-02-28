@@ -34,7 +34,7 @@ export function createResource(promise, scheduler) {
 
 	// We use a seperate promise for suspense, as that always needs resolving
 	// but we would like to keep the original erroring promise around for data flow
-	resource.suspense = resource.promise.then(resolve).catch(reject);
+	resource.suspense = resource.promise.then(resolve, reject);
 
 	return resource;
 }

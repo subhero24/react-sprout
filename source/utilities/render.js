@@ -12,14 +12,16 @@ export function createRender(configs, request) {
 	while (true) {
 		try {
 			let root = createMatch(configs, request);
-			if (root == undefined && development) {
+			if (root == undefined && import.meta.env.dev) {
 				console.warn(`No routes matched ${urlToPath(new URL(request.url))}`);
 			}
 
 			return { request, root };
 		} catch (error) {
 			if (error instanceof RedirectError && redirect) {
-				if (development) console.debug(error.message);
+				if (import.meta.env.dev) {
+					console.debug(error.message);
+				}
 
 				let path = urlToPath(error.to);
 				let pathIsRedirectLoop = redirects.includes(path);

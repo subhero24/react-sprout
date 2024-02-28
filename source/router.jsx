@@ -22,19 +22,17 @@ import useStateWithCallback from './hooks/use-state-with-callback.js';
 import { routerContext } from './hooks/use-router.js';
 import { actionsContext } from './hooks/use-actions.js';
 import { loadersContext } from './hooks/use-loaders.js';
-import { optionsContext, defaultOptions } from './hooks/use-options.js';
+import { historyContext } from './hooks/use-history.js';
 import { locationContext } from './hooks/use-location.js';
 import { navigationsContext } from './hooks/use-navigations.js';
+import { optionsContext, defaultOptions } from './hooks/use-options.js';
 
 import { GET, POST } from './constants.js';
 import { PUSH, REPLACE } from './constants.js';
 import { FETCH, RELOAD, TRANSITION } from './constants.js';
-import { URLENCODED } from './constants.js';
 
 import sleep from '../test/utilities/sleep.js';
 import startTransition from './utilities/transition.js';
-
-const identityTransform = id => id;
 
 export default function Routes(...args) {
 	let options;
@@ -55,10 +53,10 @@ export default function Routes(...args) {
 		let {
 			sticky: stickyDefault = false,
 			request: routerRequest,
+			transform,
 			delayLoadingMs = defaultOptions.delayLoadingMs,
 			minimumLoadingMs = defaultOptions.minimumLoadingMs,
 			defaultFormMethod = defaultOptions.defaultFormMethod,
-			transformFormData = identityTransform,
 			onError: onRouterError,
 			onCancel: onRouterCancel,
 			onAborted: onRouterAborted,
@@ -70,8 +68,14 @@ export default function Routes(...args) {
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
 
+		// a fake history is kept to allow background rendering with the new history
+		// before the navigation completes and the history effectively changes
+		let historyRef = useRef();
+
+		// actions and loaders have started before the pages are rendered
+		// we have to do some bookkeeping to manage resources of concurrent pages
 		let pageRef = useRef(); // this is for the current page
-		let otherRef = useRef(); // this is for the next page
+		let nextRef = useRef(); // this is for the next page
 		let pagesRef = useRef([]); // this is for the concurrent fetch navigation pages
 
 		let mountedRef = useMountedRef();
@@ -124,7 +128,6 @@ export default function Routes(...args) {
 			}
 		}, [mountedRef, native, nativeHref]);
 
-		let [error, setError] = useState();
 		let [navigations, setNavigations] = useState([]);
 
 		let [page, setPage] = useStateWithCallback(() => {
@@ -137,7 +140,7 @@ export default function Routes(...args) {
 
 			let page = suspensePageByRequestCache.get(request);
 			if (page == undefined) {
-				page = createPage(request);
+				page = createPage(request.clone());
 				suspensePageByRequestCache.set(request, page);
 			}
 
@@ -149,13 +152,35 @@ export default function Routes(...args) {
 		// in that case, the page was already set in the pages state initializer
 		let externalRequested = useLastValue(externalRequest);
 		if (externalRequested !== externalRequest && mounted) {
-			setPage(createPage(externalRequest, { cache: page }));
+			historyRef.current = undefined;
+			setPage(createPage(externalRequest.clone(), { cache: page }));
 		}
 
-		let locationUrl = page.render.request.url;
-		let locationBase = page.request.url;
-		let location = useMemo(() => new URL(locationUrl, locationBase), [locationUrl, locationBase]);
 		let elements = useMemo(() => createElements(page.render.root), [page.render.root]);
+		let location = useMemo(() => new URL(page.render.request.url), [page.render.request.url]);
+		let history = useMemo(() => {
+			if (nativeHistory == undefined) return;
+
+			return {
+				go: (...args) => nativeHistory?.go(...args),
+				back: (...args) => nativeHistory?.back(...args),
+				forward: (...args) => nativeHistory?.forward(...args),
+				pushState: (...args) => nativeHistory?.pushState(...args),
+				replaceState: (...args) => nativeHistory?.replaceState(...args),
+				get length() {
+					return nativeHistory.length + (historyRef.current?.type === 'PUSH' ? 1 : 0);
+				},
+				get state() {
+					return historyRef.current ? historyRef.current.state : nativeHistory.state;
+				},
+				get scrollRestoration() {
+					return nativeHistory.scrollRestoration;
+				},
+				set scrollRestoration(scroll) {
+					nativeHistory.scrollRestoration = scroll;
+				},
+			};
+		}, [historyRef]);
 
 		let navigate = useImmutableCallback(async (arg1, arg2) => {
 			// navigate(options)
@@ -173,11 +198,9 @@ export default function Routes(...args) {
 				title,
 				state,
 				data,
-				formData,
 				cache = false,
 				reload = false,
 				sticky = stickyDefault,
-				enctype,
 				onError,
 				onCancel,
 				onAborted,
@@ -189,21 +212,17 @@ export default function Routes(...args) {
 			let url = new URL(to ?? '', location);
 			let fix = url.href === location.href;
 
-			if (data == undefined && formData != undefined) {
-				data = transformFormData(formData);
-			}
-
 			let body;
-			let method = options?.method?.toUpperCase() ?? (formData ? defaultFormMethod : GET);
-			if (method === GET && formData) {
+			let method = options?.method?.toUpperCase() ?? (data ? POST : GET);
+			if (method === GET && data) {
 				let parts = pathParts(url.href);
 				let pathName = parts[0];
 				let pathHash = parts[2] ?? '';
-				let pathSearch = new URLSearchParams(formData);
+				let pathSearch = new URLSearchParams(data);
 
 				fix = false;
 				url = new URL(`${pathName}?${pathSearch}${pathHash}`);
-			} else {
+			} else if (data) {
 				body = data;
 			}
 
@@ -226,10 +245,10 @@ export default function Routes(...args) {
 			}
 
 			let cached = reload ? 'reload' : 'default';
-			let headers = enctype ? { 'Content-Type': enctype } : {};
-			let request = new Request(url, { method, headers, body, cache: cached });
+			let request = new Request(url, { method, body, cache: cached });
+			let details = transform ? transform(data) : data;
 
-			let detail = { request, type, state, title, intent };
+			let detail = { request, type, state, title, intent, data: details };
 			let event = new CustomEvent('navigate', { detail, cancelable: true });
 
 			// When using an empty FormData as Request.body will result
@@ -237,7 +256,7 @@ export default function Routes(...args) {
 			// This is a bug and could be tested in console with:
 			// (new Request('url', { body: new FormData(), method: 'POST' })).formData()
 			// This should work, and works fine in firefox
-			if (body instanceof FormData && [...body].length === 0) {
+			if (import.meta.env.dev && body instanceof FormData && [...body].length === 0) {
 				console.warn(
 					`FormData has no entries. This will result in a "failed to fetch" error in Chrome. Make sure your form has at least 1 named input field.`,
 				);
@@ -258,6 +277,7 @@ export default function Routes(...args) {
 			onNavigateStart?.(event);
 			onRouterNavigateStartCallback(event);
 
+			// TODO: implement status??
 			let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
 			let exclusive = !sticky && intent !== FETCH;
 			if (exclusive) {
@@ -286,14 +306,18 @@ export default function Routes(...args) {
 				}
 			}
 
-			let callbacks = { onError, onAborted, onNavigateEnd };
-			let navigationPage = createPage(request, { cache: page, event, detail, callbacks });
-
 			try {
+				let callbacks = { onError, onAborted, onNavigateEnd };
+				let navigationPage = createPage(request, { cache: page, event, callbacks });
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
 				await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
 				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
+
+				// Setting a function as state allows late binding to the action result
+				if (typeof state === 'function') {
+					state = state(navigationPage.action?.resource.result);
+				}
 
 				// The page loader schedulers by default also include the action time, because if the page
 				// was initally loaded with a POST request, the page was already rendered while executing the loaders
@@ -309,14 +333,12 @@ export default function Routes(...args) {
 				}
 
 				startTransition(sticky, () => {
+					historyRef.current = { type, state };
+
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
 					setPage(navigationPage, () => {
 						// Update history after navigationPage
-						if (native) {
-							if (typeof state === 'function') {
-								state = state(navigationPage.action?.resource.result);
-							}
-
+						if (nativeHistory) {
 							if (type === PUSH) {
 								// If pushing the history, cache the old
 								if (cache) {
@@ -332,6 +354,9 @@ export default function Routes(...args) {
 							// the history forward items are no longer accessible, and we should clear these pages
 							// from the history cache.
 							cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+
+							// The temporary historyRef is no longer valid as the native history was updated
+							historyRef.current = undefined;
 						}
 
 						onNavigateEnd?.(event);
@@ -344,37 +369,28 @@ export default function Routes(...args) {
 			}
 		});
 
-		let reload = useImmutableCallback(options => {
-			let { sticky, onCancel, onAborted, onNavigate, onNaivgateEnd, onNavigateStart } = options ?? {};
-
-			navigate({ reload: true, sticky, onCancel, onAborted, onNavigate, onNaivgateEnd, onNavigateStart });
-		});
-
-		let abort = useImmutableCallback(aborted => {
-			let otherPage = otherRef.current;
-			let abortedDetail = aborted?.detail ?? aborted;
-			if (abortedDetail) {
-				setPage(page);
-				setNavigations(navigations.filter(navigation => navigation.detail !== abortedDetail));
-
-				if (otherPage && otherPage.detail === abortedDetail) {
-					abortPage(otherPage, `Navigation to "${otherPage.request.url}" was aborted`);
-				} else {
-					let abortedPage = pagesRef.current.find(page => page.detail === abortedDetail);
-					if (abortedPage) {
-						abortPage(abortedPage, `Navigation to "${abortedPage.request.url}" was aborted`);
-					}
-				}
+		let abort = useImmutableCallback(abortedNavigations => {
+			let abortedDetails;
+			if (abortedNavigations == undefined) {
+				abortedDetails = navigations.map(navigation => navigation.detail);
+			} else if (abortedNavigations instanceof Array) {
+				abortedDetails = abortedNavigations.map(navigation => navigation.detail);
 			} else {
-				setPage(page);
-				setNavigations([]);
+				abortedDetails = [abortedNavigations.detail];
+			}
 
-				if (otherPage) {
-					abortPage(otherPage, `Navigation to "${otherPage.request.url}" was aborted`);
-				}
+			historyRef.current = undefined;
+			setPage(page);
+			setNavigations(navigations.filter(navigation => !abortedDetails.includes(navigation.detail)));
 
-				for (let page of pagesRef.current) {
-					abortPage(page, `Navigation to "${page.request.url}" was aborted`);
+			let nextPage = nextRef.current;
+			if (nextPage && abortedDetails.includes(nextPage.event?.detail)) {
+				abortPage(nextPage, `Navigation to "${nextPage.render.request.url}" was aborted`);
+			}
+
+			for (let page of pagesRef.current) {
+				if (abortedDetails.includes(page.event?.detail)) {
+					abortPage(page, `Navigation to "${page.render.request.url}" was aborted`);
 				}
 			}
 		});
@@ -391,12 +407,12 @@ export default function Routes(...args) {
 		useLayoutEffect(() => {
 			let previousPage = pageRef.current;
 			if (previousPage) {
-				abortPage(previousPage, page.request);
+				abortPage(previousPage, page.render.request);
 			}
 
 			pageRef.current = page;
-			otherRef.current = undefined;
-		}, [page, pageRef, otherRef, abortPage]);
+			nextRef.current = undefined;
+		}, [page, pageRef, nextRef, abortPage]);
 
 		// Update page on popstate
 		// Use insertion effect in case someone navigates with the history in a useEffect or useLayoutEffect
@@ -405,9 +421,10 @@ export default function Routes(...args) {
 			if (native) {
 				function handlePopstate() {
 					let request = new Request(nativeWindow.location);
-					let cachedPage = cacheRef.current.findLast(page => page?.request.url === request.url);
+					let cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url);
 					let nativePage = createPage(request, { cache: cachedPage });
 
+					historyRef.current = undefined;
 					setPage(nativePage);
 				}
 
@@ -428,11 +445,10 @@ export default function Routes(...args) {
 			}
 		}, [page]);
 
-		let routerContextValue = useMemo(() => ({ navigate, reload, abort }), [navigate, reload, abort]);
-		let optionsContextValue = useMemo(
-			() => ({ delayLoadingMs, minimumLoadingMs, defaultFormMethod }),
-			[delayLoadingMs, minimumLoadingMs, defaultFormMethod],
-		);
+		let routerContextValue = useMemo(() => ({ navigate, abort }), [navigate, abort]);
+		let optionsContextValue = useMemo(() => {
+			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
+		}, [delayLoadingMs, minimumLoadingMs, defaultFormMethod]);
 
 		return (
 			<routerContext.Provider value={routerContextValue}>
@@ -440,7 +456,9 @@ export default function Routes(...args) {
 					<navigationsContext.Provider value={navigations}>
 						<actionsContext.Provider value={page.action}>
 							<loadersContext.Provider value={page.loaders}>
-								<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+								<historyContext.Provider value={history}>
+									<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+								</historyContext.Provider>
 							</loadersContext.Provider>
 						</actionsContext.Provider>
 					</navigationsContext.Provider>
@@ -452,9 +470,7 @@ export default function Routes(...args) {
 			let { cache, event, callbacks } = options ?? {};
 
 			let render = createRender(config, requested);
-			let request = render.request;
-
-			let result = { request, event, render, callbacks };
+			let result = { render, event, callbacks };
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();
@@ -462,17 +478,17 @@ export default function Routes(...args) {
 
 			let intent = event?.detail.intent;
 			if (intent === FETCH) {
-				let otherPage = otherRef.current;
-				if (otherPage) {
-					abortPage(otherPage, requested);
+				let nextPage = nextRef.current;
+				if (nextPage) {
+					abortPage(nextPage, requested);
 				}
 
-				otherRef.current = undefined;
+				nextRef.current = undefined;
 				pagesRef.current.push(result);
 			} else {
-				let otherPage = otherRef.current;
-				if (otherPage) {
-					abortPage(otherPage, requested);
+				let nextPage = nextRef.current;
+				if (nextPage) {
+					abortPage(nextPage, requested);
 				}
 
 				for (let page of pagesRef.current) {
@@ -480,11 +496,11 @@ export default function Routes(...args) {
 				}
 
 				pagesRef.current = [];
-				otherRef.current = result;
+				nextRef.current = result;
 			}
 
 			async function createActionPromise() {
-				let method = request.method;
+				let method = render.request.method;
 				if (method === POST) {
 					let mounted = mountedRef.current;
 					if (mounted) {
@@ -493,9 +509,9 @@ export default function Routes(...args) {
 						}
 					}
 
-					let otherPage = otherRef.current;
-					if (otherPage) {
-						for (let loader of otherPage.loaders) {
+					let nextPage = nextRef.current;
+					if (nextPage) {
+						for (let loader of nextPage.loaders) {
 							loader.dirty = true;
 						}
 					}
@@ -513,9 +529,9 @@ export default function Routes(...args) {
 					}
 
 					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
-					result.action = createAction(render, { request, scheduler });
-					result.action.promise.catch(actionError);
-					result.action.promise.finally(actionFinished);
+
+					result.action = createAction(render, { event, transform, scheduler });
+					result.action.promise.catch(actionError).finally(actionFinished);
 
 					return Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
 
@@ -523,8 +539,6 @@ export default function Routes(...args) {
 						if (event) {
 							callbacks?.onError?.(event, error);
 							onRouterErrorCallback(event, error);
-						} else {
-							setError(error);
 						}
 					}
 
@@ -538,7 +552,7 @@ export default function Routes(...args) {
 				let action = result.actionPromise;
 
 				let loaders;
-				let useCache = request.cache !== 'reload' && request.cache !== 'no-store';
+				let useCache = render.request.cache !== 'reload' && render.request.cache !== 'no-store';
 				if (useCache) {
 					loaders = cache?.loaders;
 				}
@@ -553,7 +567,9 @@ export default function Routes(...args) {
 
 					return loaderResults;
 				} catch (error) {
-					console.warn(error);
+					if (import.meta.env.dev) {
+						console.warn(error);
+					}
 				}
 			}
 

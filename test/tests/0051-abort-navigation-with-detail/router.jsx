@@ -1,16 +1,17 @@
-import Routes, { Link, useLoaderResult, useRouter, useNavigations } from '../../../source/index.js';
+import Routes, { Link, useLoaderResult, useNavigations, useNavigate, useAbort } from '../../../source/index.js';
 import sleep from '../../utilities/sleep.js';
 
 function Route() {
-	let router = useRouter();
+	let abort = useAbort();
+	let [navigate] = useNavigate();
 	let navigations = useNavigations();
 
 	function handleNavigate() {
-		router.navigate({ method: 'POST' });
+		navigate({ method: 'POST' });
 	}
 
 	function handleAbort() {
-		router.abort(navigations[1]);
+		abort(navigations[1]);
 	}
 
 	return (

@@ -2,8 +2,13 @@
 	"name": "react-sprout",
 	"version": "1.0.0",
 	"description": "",
-	"main": "source/index.js",
+	"main": "build/index.js",
+	"source": "source/index.js",
 	"type": "module",
+	"exports": {
+		".": "./build/index.js",
+		"./express": "./build/express.js"
+	},
 	"scripts": {
 		"lint": "eslint source/**/*.*",
 		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",

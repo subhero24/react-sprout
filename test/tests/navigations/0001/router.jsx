@@ -1,4 +1,4 @@
-import Routes, { Link, useLoaderResult, useRouter, useNavigations } from '../../../../source/index.js';
+import Routes, { Link, useLoaderResult, useNavigations } from '../../../../source/index.js';
 import sleep from '../../../utilities/sleep.js';
 
 function RouteA() {

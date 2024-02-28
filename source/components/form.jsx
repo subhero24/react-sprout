@@ -54,7 +54,11 @@ function Form(props, ref) {
 				let action = submitter?.getAttribute('formaction') ?? resolvedPath;
 				let method = submitter?.getAttribute('formmethod') ?? form.getAttribute('method') ?? GET;
 				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
-				let formData = new FormData(form, submitter);
+
+				let data = new FormData(form, submitter);
+				if (method.toUpperCase() === GET || enctype === URLENCODED) {
+					data = new URLSearchParams(data);
+				}
 
 				// Resolve always returns an absolute path, so we can use the components router without a problem
 				router.navigate(action, {
@@ -62,12 +66,11 @@ function Form(props, ref) {
 					replace,
 					state,
 					title,
+					data,
 					cache,
 					reload,
 					method,
 					sticky,
-					enctype,
-					formData,
 					onError,
 					onCancel,
 					onAborted,

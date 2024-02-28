@@ -10,6 +10,7 @@ Test('cached navigations should be used on popstate', async () => {
 	await setup(currentDirectory, '/parent/child-a', async function ({ page }) {
 		await Promise.all([page.click('a[href="/parent/child-b"]'), page.waitForNavigation()]);
 		await Promise.all([page.goBack(), page.waitForNavigation()]);
+
 		let parentCount = await page.$eval('#parent', root => root.innerText);
 		if (parentCount !== '1') {
 			throw new Error('parent should have used the cached loader');

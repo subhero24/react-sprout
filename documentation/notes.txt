@@ -7,15 +7,10 @@ let [Link, navigations] = useLink()
 let [Form, navigations] = useForm()
 let [navigate, navigations] = useNavigate()
 
-let router = useRouter()
 
-router.abort()
-router.reload()
-router.navigate()
 
 let navigations = useNavigations()
 
-let [reload, navigation] = useReload()
 
 let history = useHistory()
 let location = useLocation()
@@ -26,6 +21,8 @@ let loader = useLoader()
 let error = useActionError()
 let action = useActionResult()
 
+We prefer using { url, signal, headers } to passing { request } as we do not think passing in the body of the request to the loaders is a good idea. 
+Only the action should have the data as loaders can be partial page results when reloading some loaders.
 
 
 
