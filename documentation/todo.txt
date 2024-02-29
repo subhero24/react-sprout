@@ -1,23 +1,10 @@
-use URL.canParse instead of try catching 
 
-Nesting routers
+Test: Nesting routers
 
-Concurrency algo abort
+
 
 Add a useUrl or something to check if url is active or pending
 to mayby color some links
 
-parallel matching change
 
-
-child suspense fallback
-
-
-
-bug: loaders promise fullfill before action when there are no loaders
-fix matching algo ... allow parallel searches
-clean up pages after suspended mount?
-
-Add redirects from action?
-Add response result from action?
 

@@ -1,18 +1,5 @@
 TODO: Think about Redirect elements with data function and dynamic to function
 
-// TODO: refactor react-hooks to do this without timeout (use effect?) to avoid flicker?
-
-// TODO: Production escapes: NODE_ENV === development
-
-Think about iframes and window.location vs document.location
-
-
-Should loaders be called after failed action on external or initial request?
-I'm thinking yes ...
-
-// TODO: Add button and input components
-
-
 
 !!!POST start should only abort pending loader GETs
 
@@ -26,5 +13,3 @@ ALGO:
 
 !!!Search route matches in parallel when the parents have the same priority, if multiple matches are found
 pick the one with highest total path score
-
-
