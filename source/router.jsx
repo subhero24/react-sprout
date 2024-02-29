@@ -526,7 +526,7 @@ export default function Routes(...args) {
 			}
 
 			async function createActionPromise() {
-				let method = render.request.method;
+				let method = render.request.method.toLowerCase();
 				if (method === POST) {
 					let mounted = mountedRef.current;
 					if (mounted) {
