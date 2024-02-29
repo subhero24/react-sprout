@@ -6,7 +6,7 @@ import setup from '../../utilities/setup.js';
 
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url));
 
-Test('onError callback', async () => {
+Test('onActionError callback', async () => {
 	await setup(currentDirectory, '/a', async function ({ page }) {
 		let error = await page.$eval('#error', node => node.innerText);
 		if (error !== 'Something went wrong') {

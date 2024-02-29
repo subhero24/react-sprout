@@ -2,7 +2,7 @@ import { POST } from '../constants.js';
 
 export async function createData(request) {
 	let data;
-	if (request.method === POST) {
+	if (request.method.toLowerCase() === POST) {
 		let contentType = request.headers.get('content-type');
 		if (contentType) {
 			if (contentType.includes('application/json')) {

@@ -3,7 +3,7 @@ import { createData as createResponseData } from './response.js';
 import { createResource } from './resource.js';
 
 export function createAction(render, options) {
-	let { event, transform, scheduler } = options ?? {};
+	let { event, scheduler, dataTransform } = options ?? {};
 
 	let match;
 	let matched = render.root;
@@ -38,8 +38,8 @@ export function createAction(render, options) {
 				let data = event?.detail.data;
 				if (data == undefined) {
 					data = await createRequestData(request);
-					if (transform) {
-						data = transform(data);
+					if (dataTransform) {
+						data = dataTransform(data);
 					}
 				}
 

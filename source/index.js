@@ -3,7 +3,6 @@ export { default } from './router.jsx';
 export { default as Link } from './components/link.jsx';
 export { default as Form } from './components/form.jsx';
 export { default as Request } from './components/request.jsx';
-export { default as Location } from './components/location.jsx';
 
 export { default as useLink } from './hooks/use-link.js';
 export { default as useForm } from './hooks/use-form.js';

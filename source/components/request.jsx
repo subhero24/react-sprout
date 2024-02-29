@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { requestContext } from '../hooks/use-request.js';
 
 export default function Request(props) {
-	let { value, children } = props;
+	let { value, defaultValue, children } = props;
 
-	return <requestContext.Provider value={value}>{children}</requestContext.Provider>;
+	let contextValue = useMemo(() => [value, defaultValue], [value, defaultValue]);
+
+	return <requestContext.Provider value={contextValue}>{children}</requestContext.Provider>;
 }

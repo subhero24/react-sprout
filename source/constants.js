@@ -1,12 +1,12 @@
-export const GET = 'GET';
-export const POST = 'POST';
+export const GET = 'get';
+export const POST = 'post';
 
-export const PUSH = 'PUSH';
-export const REPLACE = 'REPLACE';
+export const PUSH = 'push';
+export const REPLACE = 'replace';
 
-export const FETCH = 'FETCH';
-export const RELOAD = 'RELOAD';
-export const TRANSITION = 'TRANSITION';
+export const FETCH = 'fetch';
+export const RELOAD = 'reload';
+export const TRANSITION = 'transition';
 
 export const MULTIPART = 'multipart/form-data';
 export const URLENCODED = 'application/x-www-form-urlencoded';

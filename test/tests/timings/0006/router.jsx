@@ -5,7 +5,7 @@ function RouteA() {
 	let [navigate] = useNavigate();
 
 	function handleClick() {
-		navigate('/b', { method: 'post', onError: (event, error) => console.error(error) });
+		navigate('/b', { method: 'post', onActionError: (event, error) => console.error(error) });
 	}
 
 	return (

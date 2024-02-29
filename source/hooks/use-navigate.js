@@ -19,8 +19,8 @@ export default function useNavigate() {
 
 		let { relative = true, ...other } = options ?? {};
 
-		function onError(event, error) {
-			options?.onError?.(event, error);
+		function onActionError(event, error) {
+			options?.onActionError?.(event, error);
 			removeNavigationDetail(event.detail);
 		}
 
@@ -39,7 +39,13 @@ export default function useNavigate() {
 			removeNavigationDetail(event.detail);
 		}
 
-		return router.navigate(resolve(to, { relative }), { ...other, onError, onAborted, onNavigateStart, onNavigateEnd });
+		return router.navigate(resolve(to, { relative }), {
+			...other,
+			onAborted,
+			onActionError,
+			onNavigateEnd,
+			onNavigateStart,
+		});
 	});
 
 	return [navigate, busy, loading, navigations];

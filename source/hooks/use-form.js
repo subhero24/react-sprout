@@ -9,8 +9,8 @@ export default function useForm() {
 
 	let Component = useMemo(() => {
 		return forwardRef(function (props, ref) {
-			function onError(event, error) {
-				props?.onError?.(event, error);
+			function onActionError(event, error) {
+				props?.onActionError?.(event, error);
 				removeNavigationDetail(event.detail);
 			}
 
@@ -32,8 +32,8 @@ export default function useForm() {
 			return createElement(Form, {
 				ref,
 				...props,
-				onError,
 				onAborted,
+				onActionError,
 				onNavigateEnd,
 				onNavigateStart,
 			});

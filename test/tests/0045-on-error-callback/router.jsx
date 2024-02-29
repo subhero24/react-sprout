@@ -4,14 +4,14 @@ import Routes, { Form } from '../../../source/index.js';
 function ChildA() {
 	let [error, setError] = useState();
 
-	function handleError(event, error) {
+	function handleActionError(event, error) {
 		setError(error.message);
 	}
 
 	return (
 		<>
 			<div id="error">{error}</div>
-			<Form action="/b" method="post" onError={handleError}>
+			<Form action="/b" method="post" onActionError={handleActionError}>
 				<button name="name" value="value">
 					Submit
 				</button>

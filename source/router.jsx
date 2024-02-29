@@ -52,16 +52,17 @@ export default function Routes(...args) {
 
 	return function Router(props) {
 		let {
-			sticky: stickyDefault = false,
 			request: routerRequest,
-			transform,
+			defaultRequest: routerInitialRequest,
+			sticky: stickyDefault = false,
+			dataTransform,
 			delayLoadingMs = defaultOptions.delayLoadingMs,
 			minimumLoadingMs = defaultOptions.minimumLoadingMs,
 			defaultFormMethod = defaultOptions.defaultFormMethod,
-			onError: onRouterError,
 			onCancel: onRouterCancel,
 			onAborted: onRouterAborted,
 			onNavigate: onRouterNavigate,
+			onActionError: onRouterActionError,
 			onNavigateEnd: onRouterNavigateEnd,
 			onNavigateStart: onRouterNavigateStart,
 		} = props;
@@ -82,10 +83,10 @@ export default function Routes(...args) {
 		let mountedRef = useMountedRef();
 		let mounted = mountedRef.current;
 
-		let onRouterErrorCallback = useImmutableCallback(onRouterError);
 		let onRouterCancelCallback = useImmutableCallback(onRouterCancel);
 		let onRouterAbortedCallback = useImmutableCallback(onRouterAborted);
 		let onRouterNavigateCallback = useImmutableCallback(onRouterNavigate);
+		let onRouterActionErrorCallback = useImmutableCallback(onRouterActionError);
 		let onRouterNavigateEndCallback = useImmutableCallback(onRouterNavigateEnd);
 		let onRouterNavigateStartCallback = useImmutableCallback(onRouterNavigateStart);
 
@@ -106,36 +107,39 @@ export default function Routes(...args) {
 			}
 		});
 
-		let superRequest = useRequest();
-		let externalRequest = routerRequest ?? superRequest;
+		let [superRequest, superInitialRequest] = useRequest();
 
-		let native = externalRequest == undefined && nativeWindow;
-		let nativeHref = nativeWindow?.location.href;
+		let initialRequest = routerRequest ?? routerInitialRequest ?? superRequest ?? superInitialRequest;
+
+		let native = useRef(initialRequest == undefined).current;
 		let nativeRequest = useMemo(() => {
 			let mounted = mountedRef.current;
 			if (native) {
-				let request;
-				if (mounted) {
-					request = new Request(nativeHref);
-				} else {
-					request = suspenseRequestByHrefCache.get(nativeHref);
-					if (request == undefined) {
+				let nativeHref = nativeWindow?.location.href;
+				if (nativeHref) {
+					let request;
+					if (mounted) {
 						request = new Request(nativeHref);
-						suspenseRequestByHrefCache.set(nativeHref, request);
+					} else {
+						request = suspenseRequestByHrefCache.get(nativeHref);
+						if (request == undefined) {
+							request = new Request(nativeHref);
+							suspenseRequestByHrefCache.set(nativeHref, request);
+						}
 					}
-				}
 
-				return request;
+					return request;
+				}
 			}
-		}, [mountedRef, native, nativeHref]);
+		}, [mountedRef, native]);
 
 		let [navigations, setNavigations] = useState([]);
 
 		let [page, setPage] = useStateWithCallback(() => {
-			let request = externalRequest ?? nativeRequest;
+			let request = initialRequest ?? nativeRequest;
 			if (request == undefined) {
 				throw new Error(
-					`There is no "request" available for the router. Please provide a prop "request" or "defaultRequest" to your <Router> element, or alternatively wrap your <Router> within a <Request url={...}> element.`,
+					`There is no "request" available for the router. Please provide a "request" or "defaultRequest" property to your <Router> element, or alternatively wrap your <Router> within a <RouterRequest> element.`,
 				);
 			}
 
@@ -151,6 +155,7 @@ export default function Routes(...args) {
 		// When the externalRequest changes, we reset the page
 		// ExternalRequest also is different when initial rendering has an externalRequest,
 		// in that case, the page was already set in the pages state initializer
+		let externalRequest = routerRequest ?? superRequest;
 		let externalRequested = useLastValue(externalRequest);
 		if (externalRequested !== externalRequest && mounted) {
 			historyRef.current = undefined;
@@ -160,28 +165,28 @@ export default function Routes(...args) {
 		let elements = useMemo(() => createElements(page.render.root), [page.render.root]);
 		let location = useMemo(() => new URL(page.render.request.url), [page.render.request.url]);
 		let history = useMemo(() => {
-			if (nativeHistory == undefined) return;
-
-			return {
-				go: (...args) => nativeHistory?.go(...args),
-				back: (...args) => nativeHistory?.back(...args),
-				forward: (...args) => nativeHistory?.forward(...args),
-				pushState: (...args) => nativeHistory?.pushState(...args),
-				replaceState: (...args) => nativeHistory?.replaceState(...args),
-				get length() {
-					return nativeHistory.length + (historyRef.current?.type === 'PUSH' ? 1 : 0);
-				},
-				get state() {
-					return historyRef.current ? historyRef.current.state : nativeHistory.state;
-				},
-				get scrollRestoration() {
-					return nativeHistory.scrollRestoration;
-				},
-				set scrollRestoration(scroll) {
-					nativeHistory.scrollRestoration = scroll;
-				},
-			};
-		}, [historyRef]);
+			if (native && nativeHistory) {
+				return {
+					go: (...args) => nativeHistory?.go(...args),
+					back: (...args) => nativeHistory?.back(...args),
+					forward: (...args) => nativeHistory?.forward(...args),
+					pushState: (...args) => nativeHistory?.pushState(...args),
+					replaceState: (...args) => nativeHistory?.replaceState(...args),
+					get length() {
+						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0);
+					},
+					get state() {
+						return historyRef.current ? historyRef.current.state : nativeHistory.state;
+					},
+					get scrollRestoration() {
+						return nativeHistory.scrollRestoration;
+					},
+					set scrollRestoration(scroll) {
+						nativeHistory.scrollRestoration = scroll;
+					},
+				};
+			}
+		}, [native, historyRef]);
 
 		let navigate = useImmutableCallback(async (arg1, arg2) => {
 			// navigate(options)
@@ -202,10 +207,10 @@ export default function Routes(...args) {
 				cache = false,
 				reload = false,
 				sticky = stickyDefault,
-				onError,
 				onCancel,
 				onAborted,
 				onNavigate,
+				onActionError,
 				onNavigateEnd,
 				onNavigateStart,
 			} = options ?? {};
@@ -214,7 +219,7 @@ export default function Routes(...args) {
 			let fix = url.href === location.href;
 
 			let body;
-			let method = options?.method?.toUpperCase() ?? (data ? POST : GET);
+			let method = options?.method?.toLowerCase() ?? (data ? POST : GET);
 			if (method === GET && data) {
 				let parts = pathParts(url.href);
 				let pathName = parts[0];
@@ -247,9 +252,9 @@ export default function Routes(...args) {
 
 			let cached = reload ? 'reload' : 'default';
 			let request = new Request(url, { method, body, cache: cached });
-			let details = transform ? transform(data) : data;
+			let transform = dataTransform ? dataTransform(data) : data;
 
-			let detail = { request, type, state, title, intent, data: details };
+			let detail = { request, intent, data: transform };
 			let event = new CustomEvent('navigate', { detail, cancelable: true });
 
 			// When using an empty FormData as Request.body will result
@@ -278,8 +283,10 @@ export default function Routes(...args) {
 			onNavigateStart?.(event);
 			onRouterNavigateStartCallback(event);
 
-			// TODO: implement status??
-			let navigation = { loading: delayLoadingMs === 0, status: undefined, detail };
+			// Do not navigate in a controlled component
+			if (externalRequest) return;
+
+			let navigation = { loading: delayLoadingMs === 0, detail };
 			let exclusive = !sticky && intent !== FETCH;
 			if (exclusive) {
 				setNavigations([navigation]);
@@ -308,7 +315,7 @@ export default function Routes(...args) {
 			}
 
 			try {
-				let callbacks = { onError, onAborted, onNavigateEnd };
+				let callbacks = { onAborted, onActionError, onNavigateEnd };
 				let navigationPage = createPage(request, { cache: page, event, callbacks });
 				let navigationResource = navigationPage.action?.resource;
 				let delayLoadingPromise = sleep(delayLoadingMs);
@@ -357,7 +364,7 @@ export default function Routes(...args) {
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
 					setPage(navigationPage, () => {
 						// Update history after navigationPage
-						if (nativeHistory) {
+						if (native && nativeHistory) {
 							if (type === PUSH) {
 								// If pushing the history, cache the old
 								if (cache) {
@@ -437,7 +444,7 @@ export default function Routes(...args) {
 		// Use insertion effect in case someone navigates with the history in a useEffect or useLayoutEffect
 		// as child effects are run before parent effects
 		useInsertionEffect(() => {
-			if (native) {
+			if (native && nativeWindow) {
 				function handlePopstate() {
 					let request = new Request(nativeWindow.location);
 					let cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url);
@@ -447,10 +454,10 @@ export default function Routes(...args) {
 					setPage(nativePage);
 				}
 
-				nativeWindow?.addEventListener('popstate', handlePopstate);
+				nativeWindow.addEventListener('popstate', handlePopstate);
 
 				return function () {
-					nativeWindow?.removeEventListener('popstate', handlePopstate);
+					nativeWindow.removeEventListener('popstate', handlePopstate);
 				};
 			}
 		}, [native]);
@@ -549,15 +556,15 @@ export default function Routes(...args) {
 
 					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
-					result.action = createAction(render, { event, transform, scheduler });
+					result.action = createAction(render, { event, scheduler, dataTransform });
 
 					try {
 						await Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
 					} catch (error) {
 						if (event) {
 							if (error instanceof Response === false || error.status >= 400) {
-								callbacks?.onError?.(event, error);
-								onRouterErrorCallback(event, error);
+								callbacks?.onActionError?.(event, error);
+								onRouterActionErrorCallback(event, error);
 							}
 
 							throw error;

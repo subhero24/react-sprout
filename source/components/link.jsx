@@ -16,10 +16,10 @@ function Link(props, ref) {
 		sticky,
 		relative = true,
 		onClick,
-		onError,
 		onCancel,
 		onAborted,
 		onNavigate,
+		onActionError,
 		onNavigateEnd,
 		onNavigateStart,
 		...other
@@ -49,10 +49,10 @@ function Link(props, ref) {
 					replace,
 					sticky,
 					reload,
-					onError,
 					onCancel,
 					onAborted,
 					onNavigate,
+					onActionError,
 					onNavigateEnd,
 					onNavigateStart,
 				});

@@ -10,7 +10,6 @@ import { URLENCODED } from '../constants.js';
 function Form(props, ref) {
 	let options = useOptions();
 
-	let defaultRelative = true;
 	let defaultFormMethod = options.defaultFormMethod === GET ? undefined : options.defaultFormMethod;
 
 	let {
@@ -23,12 +22,12 @@ function Form(props, ref) {
 		reload,
 		sticky,
 		method = defaultFormMethod,
-		relative = defaultRelative,
+		relative = true,
 		onSubmit,
-		onError,
 		onCancel,
 		onAborted,
 		onNavigate,
+		onActionError,
 		onNavigateStart,
 		onNavigateEnd,
 		...other
@@ -56,7 +55,7 @@ function Form(props, ref) {
 				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
 
 				let data = new FormData(form, submitter);
-				if (method.toUpperCase() === GET || enctype === URLENCODED) {
+				if (method.toLowerCase() === GET || enctype.toLowerCase() === URLENCODED) {
 					data = new URLSearchParams(data);
 				}
 
@@ -71,10 +70,10 @@ function Form(props, ref) {
 					reload,
 					method,
 					sticky,
-					onError,
 					onCancel,
 					onAborted,
 					onNavigate,
+					onActionError,
 					onNavigateEnd,
 					onNavigateStart,
 				});
