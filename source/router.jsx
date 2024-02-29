@@ -262,7 +262,7 @@ export default function Routes(...args) {
 			// This is a bug and could be tested in console with:
 			// (new Request('url', { body: new FormData(), method: 'POST' })).formData()
 			// This should work, and works fine in firefox
-			if (import.meta.env.dev && body instanceof FormData && [...body].length === 0) {
+			if (import.meta.env.DEV && body instanceof FormData && [...body].length === 0) {
 				console.warn(
 					`FormData has no entries. This will result in a "failed to fetch" error in Chrome. Make sure your form has at least 1 named input field.`,
 				);
@@ -559,7 +559,7 @@ export default function Routes(...args) {
 					result.action = createAction(render, { event, scheduler, dataTransform });
 
 					try {
-						await Promise.race([result.promise, event ? result.action.resource.promise : result.action.promise]);
+						await Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise]);
 					} catch (error) {
 						if (event) {
 							if (error instanceof Response === false || error.status >= 400) {
@@ -588,16 +588,16 @@ export default function Routes(...args) {
 
 				result.loaders = createLoaders(render, { action, loaders, scheduler });
 
-				// try {
-				let loaderPromises = result.loaders.map(loader => loader.resource.promise);
-				let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
+				try {
+					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
+					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
 
-				return loaderResults;
-				// } catch (error) {
-				// 	if (import.meta.env.dev) {
-				// 		console.warn(error);
-				// 	}
-				// }
+					return loaderResults;
+				} catch (error) {
+					if (import.meta.env.DEV) {
+						console.warn(error);
+					}
+				}
 			}
 
 			return result;

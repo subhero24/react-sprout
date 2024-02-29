@@ -13,8 +13,8 @@ export function createAction(render, options) {
 	}
 
 	if (match == undefined) {
-		if (import.meta.env.dev) {
-			console.warn(`No action handler was found`);
+		if (import.meta.env.DEV) {
+			console.warn(`No action handler was found for ${new URL(render.request.url).pathname}`);
 		}
 	} else {
 		let action = match.config.action;

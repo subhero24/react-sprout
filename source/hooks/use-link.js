@@ -9,11 +9,6 @@ export default function useLink() {
 
 	let Component = useMemo(() => {
 		return forwardRef(function (props, ref) {
-			function onActionError(event, error) {
-				props?.onActionError?.(event, error);
-				removeNavigationDetail(event.detail);
-			}
-
 			function onAborted(event, reason) {
 				props?.onAborted?.(event, reason);
 				removeNavigationDetail(event.detail);
@@ -33,7 +28,6 @@ export default function useLink() {
 				ref,
 				...props,
 				onAborted,
-				onActionError,
 				onNavigateEnd,
 				onNavigateStart,
 			});

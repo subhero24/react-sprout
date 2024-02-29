@@ -12,14 +12,14 @@ export function createRender(configs, request) {
 	while (true) {
 		try {
 			let root = createMatch(configs, request);
-			if (root == undefined && import.meta.env.dev) {
+			if (root == undefined && import.meta.env.DEV) {
 				console.warn(`No routes matched ${urlToPath(new URL(request.url))}`);
 			}
 
 			return { request, root };
 		} catch (error) {
 			if (error instanceof RedirectError && redirect) {
-				if (import.meta.env.dev) {
+				if (import.meta.env.DEV) {
 					console.debug(error.message);
 				}
 

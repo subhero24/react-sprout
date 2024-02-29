@@ -8,3 +8,17 @@ to mayby color some links
 
 
 
+navigation
+- loading states
+- sticky navigation
+- relative navigation
+- aborting navigation
+- reloading
+- redirecting
+
+routes
+- roots
+- actions
+- loaders
+- redirecting
+- search parameters

@@ -9,7 +9,7 @@ export function createConfig(root, options) {
 
 	let duplicates = [];
 
-	if (import.meta.env.dev && root == undefined) {
+	if (import.meta.env.DEV && root == undefined) {
 		console.warn(`No routes are specified. The router will not render anything.`);
 	}
 
@@ -42,7 +42,7 @@ export function createConfig(root, options) {
 
 				let structure = descriptorStructure(descriptorPath);
 				let duplicate = duplicates.find(duplicate => equivalentDescriptors(duplicate.structure, structure));
-				if (duplicate && import.meta.env.dev) {
+				if (duplicate && import.meta.env.DEV) {
 					configConsole.warn(
 						`There are two routes which will match the same url. The second route will never render.`,
 						root,
@@ -65,7 +65,7 @@ export function createConfig(root, options) {
 		try {
 			assertNoElementErrors(element);
 		} catch (error) {
-			if (import.meta.env.dev && error instanceof RouterConfigError) {
+			if (import.meta.env.DEV && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, root, [element]);
 				return false;
 			} else {
@@ -88,7 +88,7 @@ export function createConfig(root, options) {
 		try {
 			assertNoElementWarnings(element);
 		} catch (error) {
-			if (import.meta.env.dev && error instanceof RouterConfigError) {
+			if (import.meta.env.DEV && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, root, [element]);
 			} else {
 				throw error;
