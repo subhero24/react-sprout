@@ -287,108 +287,144 @@ export default function Routes(...args) {
 			if (externalRequest) return;
 
 			let navigation = { loading: delayLoadingMs === 0, detail };
-			let exclusive = !sticky && intent !== FETCH;
-			if (exclusive) {
-				setNavigations([navigation]);
+			let concurrent = intent === FETCH && navigations[0]?.detail.intent === FETCH;
+			if (concurrent) {
+				setNavigations(navigations => [...navigations, navigation]);
 			} else {
-				let concurrency = intent === FETCH && navigations[0]?.detail?.intent === FETCH;
-				if (concurrency) {
-					setNavigations(navigations => [...navigations, navigation]);
-				} else {
-					setNavigations([navigation]);
-				}
-
-				if (delayLoadingMs > 0) {
-					setTimeout(() => {
-						setNavigations(navigations => {
-							let index = navigations.findIndex(navigation => navigation.detail === detail);
-							if (index === -1) {
-								return navigations;
-							} else {
-								return navigations.map((navigation, i) =>
-									i !== index ? navigation : { ...navigation, loading: true },
-								);
-							}
-						});
-					}, delayLoadingMs);
-				}
+				setNavigations([navigation]);
 			}
 
+			if (delayLoadingMs > 0) {
+				setTimeout(() => {
+					setNavigations(navigations => {
+						let index = navigations.findIndex(navigation => navigation.detail === detail);
+						if (index === -1) {
+							return navigations;
+						} else {
+							return navigations.map((navigation, i) => (i !== index ? navigation : { ...navigation, loading: true }));
+						}
+					});
+				}, delayLoadingMs);
+			}
+
+			let callbacks = { onAborted, onActionError, onNavigateEnd };
+			let navigationPage = createPage(request, { cache: page, event, callbacks });
+
+			// Fetches should set the page after the loaders to finish
+			// Reloads and transitions should set the page almost immediatly
 			try {
-				let callbacks = { onAborted, onActionError, onNavigateEnd };
-				let navigationPage = createPage(request, { cache: page, event, callbacks });
-				let navigationResource = navigationPage.action?.resource;
-				let delayLoadingPromise = sleep(delayLoadingMs);
+				if (intent === FETCH) {
+					await Promise.race([navigationPage.promise, navigationPage.loadersPromise]);
 
-				try {
-					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
-				} catch (error) {
-					if (error instanceof Response && error.status === 303) {
-						let location = error.headers.get('location');
-						let redirect = new Request(location);
+					startTransition(sticky, () => {
+						historyRef.current = { type, state };
+						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
+						setPage(navigationPage, () => {
+							// Update history after navigationPage
+							if (native && nativeHistory) {
+								if (type === PUSH) {
+									// If pushing the history, cache the old
+									if (cache) {
+										cacheRef.current[nativeHistory.length - 1] = page;
+									}
 
-						navigationPage = createPage(redirect, { cache: page, event, callbacks });
-					} else {
-						throw error;
-					}
-				}
-
-				// Setting a function as state allows late binding to the action result
-				if (typeof state === 'function') {
-					let actionResult = navigationResource.result;
-					if (actionResult instanceof Response) {
-						actionResult = await createData(actionResult);
-					}
-
-					state = await state(actionResult);
-				}
-
-				await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
-
-				// The page loader schedulers by default also include the action time, because if the page
-				// was initally loaded with a POST request, the page was already rendered while executing the loaders
-				// If a new navigation is initiated on a rendered page itself, we wait for the action to complete to render
-				// the new page. So the schedulers should really not include the action anymore.
-				// So before rendering the page, we reset the schedulers so that the minimumLoadingMs of the loader
-				// schedulers start fresh when the new page is rendered.
-
-				// We can not do this in an effect because it still resolves the suspended component before running the effect
-				// flashing the loading indicator
-				for (let loader of navigationPage.loaders) {
-					resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
-				}
-
-				startTransition(sticky, () => {
-					historyRef.current = { type, state };
-
-					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
-					setPage(navigationPage, () => {
-						// Update history after navigationPage
-						if (native && nativeHistory) {
-							if (type === PUSH) {
-								// If pushing the history, cache the old
-								if (cache) {
-									cacheRef.current[nativeHistory.length - 1] = page;
+									nativeHistory.pushState(state, title, navigationPage.render.request.url);
+								} else if (type === REPLACE) {
+									nativeHistory.replaceState(state, title, navigationPage.render.request.url);
 								}
 
-								nativeHistory.pushState(state, title, navigationPage.render.request.url);
-							} else if (type === REPLACE) {
-								nativeHistory.replaceState(state, title, navigationPage.render.request.url);
+								// When a navigation happens, after a popstate to the middle of the history stack
+								// the history forward items are no longer accessible, and we should clear these pages
+								// from the history cache.
+								cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+
+								// The temporary historyRef is no longer valid as the native history was updated
+								historyRef.current = undefined;
 							}
 
-							// When a navigation happens, after a popstate to the middle of the history stack
-							// the history forward items are no longer accessible, and we should clear these pages
-							// from the history cache.
-							cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+							onNavigateEnd?.(event);
+							onRouterNavigateEndCallback(event);
+						});
+					});
+				} else {
+					let redirectedPage;
+					let delayLoadingPromise = sleep(delayLoadingMs);
 
-							// The temporary historyRef is no longer valid as the native history was updated
-							historyRef.current = undefined;
+					try {
+						await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+					} catch (error) {
+						if (error instanceof Response && error.status === 303) {
+							let location = error.headers.get('location');
+							let redirect = new Request(location);
+
+							redirectedPage = createPage(redirect, { cache: page, event, callbacks });
+						} else {
+							throw error;
+						}
+					}
+
+					// Setting a function as state allows late binding to the action result
+					if (typeof state === 'function') {
+						let actionResult = navigationPage.action?.resource.result;
+						if (actionResult instanceof Response) {
+							actionResult = await createData(actionResult);
 						}
 
-						onNavigateEnd?.(event);
-						onRouterNavigateEndCallback(event);
+						state = await state(actionResult);
+					}
+
+					// Change this after the state update function because we need the old navigationPage action to update the state
+					if (redirectedPage) {
+						navigationPage = redirectedPage;
+					}
+
+					await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
+
+					// The page loader schedulers by default also include the action time, because if the page
+					// was initally loaded with a POST request, the page was already rendered while executing the loaders
+					// If a new navigation is initiated on a rendered page itself, we wait for the action to complete to render
+					// the new page. So the schedulers should really not include the action anymore.
+					// So before rendering the page, we reset the schedulers so that the minimumLoadingMs of the loader
+					// schedulers start fresh when the new page is rendered.
+
+					// We can not do this in an effect because it still resolves the suspended component before running the effect
+					// flashing the loading indicator
+					for (let loader of navigationPage.loaders) {
+						resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
+					}
+
+					startTransition(sticky, () => {
+						historyRef.current = { type, state };
+
+						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
+						setPage(navigationPage, () => {
+							// Update history after navigationPage
+							if (native && nativeHistory) {
+								if (type === PUSH) {
+									// If pushing the history, cache the old
+									if (cache) {
+										cacheRef.current[nativeHistory.length - 1] = page;
+									}
+
+									nativeHistory.pushState(state, title, navigationPage.render.request.url);
+								} else if (type === REPLACE) {
+									nativeHistory.replaceState(state, title, navigationPage.render.request.url);
+								}
+
+								// When a navigation happens, after a popstate to the middle of the history stack
+								// the history forward items are no longer accessible, and we should clear these pages
+								// from the history cache.
+								cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+
+								// The temporary historyRef is no longer valid as the native history was updated
+								historyRef.current = undefined;
+							}
+
+							onNavigateEnd?.(event);
+							onRouterNavigateEndCallback(event);
+						});
 					});
-				});
+				}
 			} catch (error) {
 				// We use a promise to bail out if needed (ie abort), but this is not an error,
 				// so we catch it and do nothing

@@ -9,7 +9,9 @@ function Route() {
 
 	return (
 		<>
+			<div>{data}</div>
 			<div>{navigations.length}</div>
+			<div>{JSON.stringify(navigations)}</div>
 			<Form method="post" sticky>
 				<button name="intent" value="submit">
 					Submit
@@ -21,11 +23,12 @@ function Route() {
 
 let Router = Routes(<Route loader={loader} />);
 
-async function loader() {
-	console.log('woot');
-	await sleep(2000);
+let count = 0;
 
-	return 'test';
+async function loader() {
+	await sleep(3000);
+
+	return count++;
 }
 
 export default Router;

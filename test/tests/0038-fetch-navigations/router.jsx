@@ -2,7 +2,6 @@ import Routes, { Form, useLoaderResult } from '../../../source/index.js';
 
 let value = 0;
 async function action() {
-	debugger;
 	return ++value;
 }
 
