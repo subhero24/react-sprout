@@ -90,11 +90,15 @@ export default function Routes(...args) {
 		let onRouterNavigateEndCallback = useImmutableCallback(onRouterNavigateEnd);
 		let onRouterNavigateStartCallback = useImmutableCallback(onRouterNavigateStart);
 
+		let [navigations, setNavigations] = useState([]);
+
 		let abortPage = useImmutableCallback((page, reason) => {
 			page.promise.reject(reason);
 			page.action?.controller.abort(reason);
 			page.loaders?.forEach(loader => loader.controller.abort(reason));
 			page.callbacks?.onAborted?.(page.event, reason);
+
+			setNavigations(navigations => navigations.filter(navigation => navigation.detail !== page.event?.detail));
 
 			onRouterAbortedCallback?.(page.event, reason);
 		});
@@ -132,8 +136,6 @@ export default function Routes(...args) {
 				}
 			}
 		}, [mountedRef, native]);
-
-		let [navigations, setNavigations] = useState([]);
 
 		let [page, setPage] = useStateWithCallback(() => {
 			let request = initialRequest ?? nativeRequest;
@@ -291,6 +293,7 @@ export default function Routes(...args) {
 			if (concurrent) {
 				setNavigations(navigations => [...navigations, navigation]);
 			} else {
+				console.log('navigation', [navigation]);
 				setNavigations([navigation]);
 			}
 
@@ -308,76 +311,55 @@ export default function Routes(...args) {
 			}
 
 			let callbacks = { onAborted, onActionError, onNavigateEnd };
+			let redirectedPage;
 			let navigationPage = createPage(request, { cache: page, event, callbacks });
 
 			// Fetches should set the page after the loaders to finish
 			// Reloads and transitions should set the page almost immediatly
+
 			try {
-				if (intent === FETCH) {
-					await Promise.race([navigationPage.promise, navigationPage.loadersPromise]);
+				let delayLoadingPromise = sleep(delayLoadingMs);
 
-					startTransition(sticky, () => {
-						historyRef.current = { type, state };
-						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
-						setPage(navigationPage, () => {
-							// Update history after navigationPage
-							if (native && nativeHistory) {
-								if (type === PUSH) {
-									// If pushing the history, cache the old
-									if (cache) {
-										cacheRef.current[nativeHistory.length - 1] = page;
-									}
-
-									nativeHistory.pushState(state, title, navigationPage.render.request.url);
-								} else if (type === REPLACE) {
-									nativeHistory.replaceState(state, title, navigationPage.render.request.url);
-								}
-
-								// When a navigation happens, after a popstate to the middle of the history stack
-								// the history forward items are no longer accessible, and we should clear these pages
-								// from the history cache.
-								cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
-
-								// The temporary historyRef is no longer valid as the native history was updated
-								historyRef.current = undefined;
+				try {
+					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+				} catch (error) {
+					if (error instanceof Response && error.status === 303) {
+						if (intent === FETCH) {
+							// TODO: which behavior to choose:
+							// not supported
+							// check if other transitions and abort them and redirect
+							// check if other transitions and do not redirect
+							if (import.meta.env.DEV) {
+								console.warn(`TODO: handle redirect responses from actions with a fetch navigation `);
 							}
-
-							onNavigateEnd?.(event);
-							onRouterNavigateEndCallback(event);
-						});
-					});
-				} else {
-					let redirectedPage;
-					let delayLoadingPromise = sleep(delayLoadingMs);
-
-					try {
-						await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
-					} catch (error) {
-						if (error instanceof Response && error.status === 303) {
+						} else {
 							let location = error.headers.get('location');
 							let redirect = new Request(location);
-
 							redirectedPage = createPage(redirect, { cache: page, event, callbacks });
-						} else {
-							throw error;
 						}
+					} else {
+						throw error;
+					}
+				}
+
+				// Setting a function as state allows late binding to the action result
+				if (typeof state === 'function') {
+					let actionResult = navigationPage.action?.resource.result;
+					if (actionResult instanceof Response) {
+						actionResult = await createData(actionResult);
 					}
 
-					// Setting a function as state allows late binding to the action result
-					if (typeof state === 'function') {
-						let actionResult = navigationPage.action?.resource.result;
-						if (actionResult instanceof Response) {
-							actionResult = await createData(actionResult);
-						}
+					state = await state(actionResult);
+				}
 
-						state = await state(actionResult);
-					}
+				// Change this after the state update function because we need the old navigationPage action to update the state
+				if (redirectedPage) {
+					navigationPage = redirectedPage;
+				}
 
-					// Change this after the state update function because we need the old navigationPage action to update the state
-					if (redirectedPage) {
-						navigationPage = redirectedPage;
-					}
-
+				if (intent === FETCH) {
+					await Promise.race([navigationPage.promise, navigationPage.loadersPromise]);
+				} else {
 					await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
 
 					// The page loader schedulers by default also include the action time, because if the page
@@ -392,39 +374,39 @@ export default function Routes(...args) {
 					for (let loader of navigationPage.loaders) {
 						resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
 					}
+				}
 
-					startTransition(sticky, () => {
-						historyRef.current = { type, state };
+				startTransition(sticky, () => {
+					historyRef.current = { type, state };
 
-						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
-						setPage(navigationPage, () => {
-							// Update history after navigationPage
-							if (native && nativeHistory) {
-								if (type === PUSH) {
-									// If pushing the history, cache the old
-									if (cache) {
-										cacheRef.current[nativeHistory.length - 1] = page;
-									}
-
-									nativeHistory.pushState(state, title, navigationPage.render.request.url);
-								} else if (type === REPLACE) {
-									nativeHistory.replaceState(state, title, navigationPage.render.request.url);
+					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
+					setPage(navigationPage, () => {
+						// Update history after navigationPage
+						if (native && nativeHistory) {
+							if (type === PUSH) {
+								// If pushing the history, cache the old
+								if (cache) {
+									cacheRef.current[nativeHistory.length - 1] = page;
 								}
 
-								// When a navigation happens, after a popstate to the middle of the history stack
-								// the history forward items are no longer accessible, and we should clear these pages
-								// from the history cache.
-								cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
-
-								// The temporary historyRef is no longer valid as the native history was updated
-								historyRef.current = undefined;
+								nativeHistory.pushState(state, title, navigationPage.render.request.url);
+							} else if (type === REPLACE) {
+								nativeHistory.replaceState(state, title, navigationPage.render.request.url);
 							}
 
-							onNavigateEnd?.(event);
-							onRouterNavigateEndCallback(event);
-						});
+							// When a navigation happens, after a popstate to the middle of the history stack
+							// the history forward items are no longer accessible, and we should clear these pages
+							// from the history cache.
+							cacheRef.current = cacheRef.current.slice(0, nativeHistory.length - 1);
+
+							// The temporary historyRef is no longer valid as the native history was updated
+							historyRef.current = undefined;
+						}
+
+						onNavigateEnd?.(event);
+						onRouterNavigateEndCallback(event);
 					});
-				}
+				});
 			} catch (error) {
 				// We use a promise to bail out if needed (ie abort), but this is not an error,
 				// so we catch it and do nothing
@@ -511,6 +493,8 @@ export default function Routes(...args) {
 		let optionsContextValue = useMemo(() => {
 			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
 		}, [delayLoadingMs, minimumLoadingMs, defaultFormMethod]);
+
+		console.log(navigations);
 
 		return (
 			<routerContext.Provider value={routerContextValue}>
@@ -628,11 +612,19 @@ export default function Routes(...args) {
 					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
 					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
 
+					for (let page of pagesRef.current) {
+						if (page.timestamp < result.timestamp) {
+							abortPage(page, result.render.request);
+						}
+					}
+					pagesRef.current = pagesRef.current.filter(page => page !== result);
+
 					return loaderResults;
 				} catch (error) {
 					if (import.meta.env.DEV) {
 						console.warn(error);
 					}
+				} finally {
 				}
 			}
 

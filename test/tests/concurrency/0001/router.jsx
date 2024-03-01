@@ -1,34 +1,40 @@
-import { useForm, useLoaderResult } from '../../../../source/index.js';
+import { useForm, useLoaderResult, useNavigations } from '../../../../source/index.js';
 import Routes from '../../../../source/index.js';
 import sleep from '../../../utilities/sleep.js';
 
 function Route() {
 	let data = useLoaderResult();
 
-	let [Form, busy, loading, navigations] = useForm();
+	let navigations1 = useNavigations();
+	let [Form, busy, loading, navigations2] = useForm();
 
 	return (
 		<>
-			<div>{data}</div>
-			<div>{navigations.length}</div>
-			<div>{JSON.stringify(navigations)}</div>
 			<Form method="post" sticky>
-				<button name="intent" value="submit">
-					Submit
-				</button>
+				<button>Submit</button>
 			</Form>
+			<div>{data}</div>
+			<div>{JSON.stringify(navigations1)}</div>
+			<div>{JSON.stringify(navigations2)}</div>
 		</>
 	);
 }
 
-let Router = Routes(<Route loader={loader} />);
+let actionCount = 0;
+async function action() {
+	return actionCount++;
+}
 
-let count = 0;
+let Router = Routes(<Route action={action} loader={loader} />);
 
+let loaderCount = 0;
 async function loader() {
-	await sleep(3000);
+	let count = loaderCount++;
+	await sleep(actionCount % 2 === 1 ? 4000 : 2000);
 
-	return count++;
+	console.log(count);
+
+	return count;
 }
 
 export default Router;
