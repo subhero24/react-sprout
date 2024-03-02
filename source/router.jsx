@@ -285,15 +285,14 @@ export default function Routes(...args) {
 			onNavigateStart?.(event);
 			onRouterNavigateStartCallback(event);
 
-			// Do not navigate in a controlled component
-			if (externalRequest) return;
+			// Do not navigate to a new url in a controlled component
+			if (externalRequest && intent === TRANSITION) return;
 
 			let navigation = { loading: delayLoadingMs === 0, detail };
 			let concurrent = intent === FETCH && navigations[0]?.detail.intent === FETCH;
 			if (concurrent) {
 				setNavigations(navigations => [...navigations, navigation]);
 			} else {
-				console.log('navigation', [navigation]);
 				setNavigations([navigation]);
 			}
 
@@ -324,13 +323,12 @@ export default function Routes(...args) {
 					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
 				} catch (error) {
 					if (error instanceof Response && error.status === 303) {
-						if (intent === FETCH) {
-							// TODO: which behavior to choose:
-							// not supported
-							// check if other transitions and abort them and redirect
-							// check if other transitions and do not redirect
+						let pagesCount = pagesRef.current.length;
+						if (pagesCount > 1 && intent === FETCH) {
 							if (import.meta.env.DEV) {
-								console.warn(`TODO: handle redirect responses from actions with a fetch navigation `);
+								console.warn(
+									'Action redirect response is ignored for this navigation as there are other concurrent navigations.',
+								);
 							}
 						} else {
 							let location = error.headers.get('location');
@@ -494,8 +492,6 @@ export default function Routes(...args) {
 			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
 		}, [delayLoadingMs, minimumLoadingMs, defaultFormMethod]);
 
-		console.log(navigations);
-
 		return (
 			<routerContext.Provider value={routerContextValue}>
 				<optionsContext.Provider value={optionsContextValue}>
@@ -522,21 +518,16 @@ export default function Routes(...args) {
 			result.actionPromise = createActionPromise();
 			result.loadersPromise = createLoadersPromise();
 
+			let nextPage = nextRef.current;
+			if (nextPage) {
+				abortPage(nextPage, requested);
+			}
+
 			let intent = event?.detail.intent;
 			if (intent === FETCH) {
-				let nextPage = nextRef.current;
-				if (nextPage) {
-					abortPage(nextPage, requested);
-				}
-
 				nextRef.current = undefined;
 				pagesRef.current.push(result);
 			} else {
-				let nextPage = nextRef.current;
-				if (nextPage) {
-					abortPage(nextPage, requested);
-				}
-
 				for (let page of pagesRef.current) {
 					abortPage(page, requested);
 				}
@@ -612,19 +603,19 @@ export default function Routes(...args) {
 					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
 					let loaderResults = await Promise.race([result.promise, Promise.allSettled(loaderPromises)]);
 
+					pagesRef.current = pagesRef.current.filter(page => page !== result);
+
 					for (let page of pagesRef.current) {
 						if (page.timestamp < result.timestamp) {
-							abortPage(page, result.render.request);
+							abortPage(page, `Out of order HTTP request`);
 						}
 					}
-					pagesRef.current = pagesRef.current.filter(page => page !== result);
 
 					return loaderResults;
 				} catch (error) {
 					if (import.meta.env.DEV) {
 						console.warn(error);
 					}
-				} finally {
 				}
 			}
 

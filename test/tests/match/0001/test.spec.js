@@ -1,13 +1,16 @@
 import Test from 'node:test';
 
-import match from '../../../../source/utilities/match.js';
+import { fileURLToPath } from 'url';
 
-Test('components have the correct location with useLocation', async () => {
-	// match();
-	// await setup(currentDirectory, '/a/b/c', async function ({ page }) {
-	// 	let pathname = await page.$eval('#root', root => root.innerText);
-	// 	if (pathname !== '/a/b/c') {
-	// 		throw new Error('it should have rendered the correct location pathname');
-	// 	}
-	// });
+import setup from '../../../utilities/setup.js';
+
+const currentDirectory = fileURLToPath(new URL('.', import.meta.url));
+
+Test('parallel matching', async () => {
+	await setup(currentDirectory, '/parent/child', async function ({ page }) {
+		let render = await page.$eval('#root', root => root.innerHTML);
+		if (render !== 'B') {
+			throw new Error('it should have matched the other routes');
+		}
+	});
 });

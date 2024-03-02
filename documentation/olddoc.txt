@@ -1,15 +1,5 @@
 TODO: Think about Redirect elements with data function and dynamic to function
 
-
-!!!POST start should only abort pending loader GETs
-
-!!!When a GET completes, cancel all other running GETS that have a runtime without completing concurrent POSTs
-A GET request that started later, but ends sooner should cancel the other GET?
-
-ALGO:
-- When GET request finishes, cancel all pending GETS that started earlier. 
-- Also cancel all pending GETS that started after the last completing POST.
-
-
 !!!Search route matches in parallel when the parents have the same priority, if multiple matches are found
 pick the one with highest total path score
+

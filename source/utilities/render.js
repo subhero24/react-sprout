@@ -4,8 +4,6 @@ import { createMatch } from './match.js';
 
 import { urlToPath } from './url.js';
 
-import { development } from './environment.js';
-
 export function createRender(configs, request) {
 	let redirect = request.redirect === 'follow';
 	let redirects = [];

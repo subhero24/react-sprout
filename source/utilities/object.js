@@ -6,7 +6,7 @@ export function isEquivalentObject(o1, o2) {
 
 		return o1.every((item, index) => isEquivalentObject(item, o2[index]));
 	} else if (o1 instanceof Set && o2 instanceof Set) {
-		if (o1.size() !== o2.size()) return false;
+		if (o1.size !== o2.size) return false;
 
 		return [...o1].every(value => o2.has(value) || [...o2].some(object => isEquivalentObject(value, object)));
 	} else if (typeof o1 === 'object' && typeof o2 === 'object') {

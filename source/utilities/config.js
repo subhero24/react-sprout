@@ -4,16 +4,16 @@ import { descriptorScore, descriptorStructure, equivalentDescriptors } from './d
 
 import configConsole from './console.js';
 
-export function createConfig(root, options) {
+export function createConfig(rootElement, options) {
 	let { prefix = '' } = options ?? {};
 
 	let duplicates = [];
 
-	if (import.meta.env.DEV && root == undefined) {
+	if (import.meta.env.DEV && rootElement == undefined) {
 		console.warn(`No routes are specified. The router will not render anything.`);
 	}
 
-	return createConfigs(root == undefined ? [] : [root]);
+	return createConfigs(rootElement == undefined ? [] : [rootElement]);
 
 	function createConfigs(elements, options) {
 		let { base = '/', level = 0 } = options ?? {};
@@ -45,7 +45,7 @@ export function createConfig(root, options) {
 				if (duplicate && import.meta.env.DEV) {
 					configConsole.warn(
 						`There are two routes which will match the same url. The second route will never render.`,
-						root,
+						rootElement,
 						[duplicate.element, element],
 					);
 				} else {
@@ -66,7 +66,7 @@ export function createConfig(root, options) {
 			assertNoElementErrors(element);
 		} catch (error) {
 			if (import.meta.env.DEV && error instanceof RouterConfigError) {
-				configConsole.warn(error.message, root, [element]);
+				configConsole.warn(error.message, rootElement, [element]);
 				return false;
 			} else {
 				throw error;
@@ -89,7 +89,7 @@ export function createConfig(root, options) {
 			assertNoElementWarnings(element);
 		} catch (error) {
 			if (import.meta.env.DEV && error instanceof RouterConfigError) {
-				configConsole.warn(error.message, root, [element]);
+				configConsole.warn(error.message, rootElement, [element]);
 			} else {
 				throw error;
 			}
