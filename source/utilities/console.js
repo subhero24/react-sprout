@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { node, browser } from './environment.js';
 import { childrenToArray } from './children.js';
 
-import Redirect from './redirect.js';
+import Redirect from '../components/redirect.jsx';
 
 let blacklist = ['children'];
 

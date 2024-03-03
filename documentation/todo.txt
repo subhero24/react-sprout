@@ -1,12 +1,7 @@
-
 Test: Nesting routers
-
-
-
-Add a useUrl or something to check if url is active or pending
-to mayby color some links
-
-
+Test: 
+Redirect post request
+Redirect route with action
 
 navigation
 - loading states
@@ -14,11 +9,18 @@ navigation
 - relative navigation
 - aborting navigation
 - reloading
-- redirecting
 
 routes
 - roots
 - actions
 - loaders
 - redirecting
+- search parameters
+
+actions
+- responses
+- redirecting
+
+loaders
+- responses
 - search parameters

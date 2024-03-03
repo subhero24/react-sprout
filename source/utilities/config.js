@@ -1,3 +1,5 @@
+import Redirect from '../components/redirect.jsx';
+
 import { joinPaths, pathParts, resolvePaths } from './path.js';
 import { childrenToArray } from './children.js';
 import { descriptorScore, descriptorStructure, equivalentDescriptors } from './descriptor.js';
@@ -24,7 +26,7 @@ export function createConfig(rootElement, options) {
 		validElements.forEach(verifyNoElementWarnings);
 
 		return sortedElements.map(element => {
-			let { path, root, loader, action, children, ...other } = element.props;
+			let { path, root, to, status, loader, action, children, ...other } = element.props;
 
 			if (action === true) action = createConfigAction(prefix);
 			if (loader === true) loader = createConfigLoader(prefix, level);
@@ -53,7 +55,12 @@ export function createConfig(rootElement, options) {
 				}
 			}
 
-			return { ...other, type: element.type, path, root, loader, action, children: childConfigs };
+			let type = element.type;
+			if (type === Redirect) {
+				return { type, path, to, status, action };
+			} else {
+				return { type, path, root, status, loader, action, children: childConfigs };
+			}
 		});
 	}
 
@@ -77,11 +84,10 @@ export function createConfig(rootElement, options) {
 	}
 
 	function assertNoElementWarnings(element) {
-		let elementHasPathProperty = element.props.path != undefined;
-		if (elementHasPathProperty) {
-			assertElementPathHasNoHash(element);
-			assertElementPathHasNoInvalidUseOfSplat(element);
-		}
+		assertElementPathHasNoHash(element);
+		assertElementRedirectHasNoLoader(element);
+		assertElementRedirictHasNoChildren(element);
+		assertElementWithoutChildrenIsNotRoot(element);
 	}
 
 	function verifyNoElementWarnings(element) {
@@ -128,23 +134,45 @@ function assertElementIsNotTextNode(element) {
 	}
 }
 
-function assertElementPathHasNoInvalidUseOfSplat(element) {
-	let invalidUseOfSplatSegment = /([^\/]\*)|(\*([^\/]|(\/.)))/;
-
-	let pathname = pathParts(element.props.path)[0];
-	if (pathname.match(invalidUseOfSplatSegment)) {
+function assertElementRedirectHasNoLoader(element) {
+	let type = element.type;
+	let loader = element.props.loader;
+	if (loader && type === Redirect) {
 		throw new RouterConfigError(
-			`There is a route with invalid use of "*". The splat should be the last segment of the path.`,
+			`There is a Redirect route with a loader. Redirect routes should not load data as they will not render. Please remove the loader to fix this.`,
+		);
+	}
+}
+
+function assertElementRedirictHasNoChildren(element) {
+	let type = element.type;
+	let children = element.props.children;
+	if (children && type === Redirect) {
+		throw new RouterConfigError(
+			`There is a Redirect route with child routes. Redirect routes should not have child routes. Please remove the child routes to fix this.`,
+		);
+	}
+}
+
+function assertElementWithoutChildrenIsNotRoot(element) {
+	let root = element.props.root;
+	let children = element.props.children;
+	if (children && root) {
+		throw new RouterConfigError(
+			`There is a root route without child routes. Please remove the root property to fix this.`,
 		);
 	}
 }
 
 function assertElementPathHasNoHash(element) {
-	let hash = pathParts(element.props.path)[2];
-	if (hash) {
-		throw new RouterConfigError(
-			`There is a route with a hash "#${hash}". Hashes should not be used in your route paths. Please remove the hash "#${hash}" to fix this.`,
-		);
+	let path = element.props.path;
+	if (path != undefined) {
+		let hash = pathParts(element.props.path)[2];
+		if (hash) {
+			throw new RouterConfigError(
+				`There is a route with a hash "#${hash}". Hashes should not be used in your route paths. Please remove the hash "#${hash}" to fix this.`,
+			);
+		}
 	}
 }
 

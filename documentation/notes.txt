@@ -5,7 +5,7 @@ Memory routers are not possible in combination with useSyncExternalStore
 We prefer using { url, signal, headers } to passing { request } as we do not think passing in the body of the request to the loaders is a good idea. 
 Only the action should have the data as loaders can be partial page results when reusing some loaders while reloading others.
 
-
+No loaders on redirect as they do not render anything
 
 
 

@@ -11,6 +11,7 @@ import { createScheduler, resetScheduler } from './utilities/scheduler.js';
 
 import { nativeWindow } from './utilities/window.js';
 import { nativeHistory } from './utilities/history.js';
+import { nativeDocument } from './utilities/document.js';
 
 import { pathParts } from './utilities/path.js';
 
@@ -486,6 +487,13 @@ export default function Routes(...args) {
 				}
 			}
 		}, [page]);
+
+		// Change url in case page was redirect
+		useEffect(() => {
+			if (native && nativeHistory) {
+				nativeHistory.replaceState(nativeHistory.state, nativeDocument.title, page.render.request.url);
+			}
+		}, [page, native]);
 
 		let routerContextValue = useMemo(() => ({ navigate, abort }), [navigate, abort]);
 		let optionsContextValue = useMemo(() => {

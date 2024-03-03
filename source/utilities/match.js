@@ -1,4 +1,4 @@
-import Redirect, { RedirectError } from './redirect.js';
+import Redirect from '../components/redirect.jsx';
 
 import { pathParts, resolvePaths } from './path.js';
 import { isEquivalentObject } from './object.js';
@@ -31,9 +31,10 @@ export function createMatch(configs, requested, context) {
 					path = interpolateDescriptor(config.to, params, splat);
 				}
 
-				let url = resolvePaths(root, path);
-				let target = new URL(url, location);
-				throw new RedirectError(`Redirecting from ${location} to ${target}`, target, config.status);
+				let redirectPath = resolvePaths(root, path);
+				let redirectUrl = new URL(redirectPath, location);
+
+				throw Response.redirect(redirectUrl, config.status ?? 308);
 			}
 
 			let request;
