@@ -3,13 +3,15 @@ import Redirect from '../components/redirect.jsx';
 import { pathParts, resolvePaths } from './path.js';
 import { isEquivalentObject } from './object.js';
 import { matchQuery, filterQuery } from './query.js';
-import { matchDescriptor, interpolateDescriptor } from './descriptor.js';
+import { matchDescriptor, interpolateDescriptor, descriptorScore } from './descriptor.js';
 
 export function createMatch(configs, requested, context) {
-	let { root = '/', params: parentParams = {} } = context ?? {};
+	let { root = '/', params: parentParams = {}, matched } = context ?? {};
 
 	let location = new URL(requested.url);
 	for (let config of configs) {
+		if (matched && config.score < matched.config.score) return;
+
 		let [pathPathname, pathSearch] = pathParts(config.path);
 
 		let strict = config.children == undefined && pathPathname !== '';
@@ -50,18 +52,19 @@ export function createMatch(configs, requested, context) {
 
 			let children = config.children;
 			if (children?.length) {
-				let root = base;
-				let matches = createMatch(children, requested, { root, params });
-				if (matches == undefined) {
-					continue;
-				} else {
-					match.children = matches;
-				}
+				let matches = createMatch(children, requested, { root: base, params, matched: matched?.children });
+				if (matches == undefined) continue;
+				if (matched) matched = match;
+
+				match.children = matches;
 			}
 
-			return match;
+			if (matched == undefined || matched.config.score < match.config.score) {
+				matched = match;
+			}
 		}
 	}
+	return matched;
 }
 
 export function isEquivalentMatch(matchA, matchB) {

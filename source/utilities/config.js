@@ -1,15 +1,16 @@
+import { Fragment, isValidElement } from 'react';
+
 import Redirect from '../components/redirect.jsx';
+
+import configConsole from './console.js';
 
 import { joinPaths, pathParts, resolvePaths } from './path.js';
 import { childrenToArray } from './children.js';
 import { descriptorScore, descriptorStructure, equivalentDescriptors } from './descriptor.js';
 
-import configConsole from './console.js';
-import { isValidElement } from 'react';
-
-export function createConfig(rootRoute, options) {
-	if (import.meta.env.DEV) {
-		if (rootRoute == undefined || (rootRoute instanceof Array && rootRoute.length === 0)) {
+export function createConfig(root, options) {
+	if (root == undefined || (root instanceof Array && root.length === 0)) {
+		if (import.meta.env.DEV) {
 			console.warn(`No routes are specified. The router will not render anything.`);
 		}
 	}
@@ -17,12 +18,15 @@ export function createConfig(rootRoute, options) {
 	let duplicates = [];
 	let optionsPrefix = options?.prefix ?? '';
 
-	return createConfigs(rootRoute == undefined ? [] : [rootRoute]);
+	let rootRoute = createRouteObject(root);
+	let rootConfigs = createConfigs([rootRoute]);
+
+	return rootConfigs;
 
 	function createConfigs(routes, options) {
 		let { base = '/', level = 0 } = options ?? {};
 
-		let validRoutes = routes.filter(verifyNoRouteErrors).map(createRouteObject);
+		let validRoutes = routes.filter(verifyNoRouteErrors);
 		let sortedRoutes = sortRoutesByDescriptorScore(validRoutes);
 
 		validRoutes.forEach(verifyNoRouteWarnings);
@@ -30,6 +34,7 @@ export function createConfig(rootRoute, options) {
 		return sortedRoutes.map(element => {
 			let { type, path, root, to, status, loader, action, children } = element;
 
+			let score = descriptorScore(path); // Extract this as it is calculated twice (also for sorting in the beginning)
 			if (action === true) action = createConfigAction(optionsPrefix);
 			if (loader === true) loader = createConfigLoader(optionsPrefix, level);
 
@@ -58,9 +63,9 @@ export function createConfig(rootRoute, options) {
 			}
 
 			if (type === Redirect) {
-				return { type, path, to, status, action };
+				return { type, path, score, to, status, action };
 			} else {
-				return { type, path, root, status, loader, action, children: childConfigs };
+				return { type, path, score, root, status, loader, action, children: childConfigs };
 			}
 		});
 	}
@@ -108,14 +113,33 @@ export function createConfig(rootRoute, options) {
 	}
 }
 
-function createRouteObject(route) {
-	let isReactElement = isValidElement(route);
-	if (isReactElement) {
-		let { type, ...other } = route.props;
-
-		return { type: route.type, ...other };
+function createRouteObject(root) {
+	let rootRoute;
+	let rootIsArray = root instanceof Array;
+	if (rootIsArray) {
+		rootRoute = { type: Fragment, children: root };
 	} else {
-		return route;
+		rootRoute = root;
+	}
+
+	return createRouteObjects([rootRoute])[0];
+
+	function createRouteObjects(routes) {
+		return routes.map(route => {
+			let isReactElement = isValidElement(route);
+			if (isReactElement) {
+				let { type, children, ...other } = route.props;
+
+				let childrenArray = childrenToArray(children);
+				if (childrenArray.length) {
+					return { type: route.type, ...other, children: createRouteObjects(childrenArray) };
+				} else {
+					return { type: route.type, ...other };
+				}
+			} else {
+				return route;
+			}
+		});
 	}
 }
 
