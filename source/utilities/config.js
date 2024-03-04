@@ -8,11 +8,9 @@ import { joinPaths, pathParts, resolvePaths } from './path.js';
 import { childrenToArray } from './children.js';
 import { descriptorScore, descriptorStructure, equivalentDescriptors } from './descriptor.js';
 
-export function createConfig(root, options) {
-	if (root == undefined || (root instanceof Array && root.length === 0)) {
-		if (import.meta.env.DEV) {
-			console.warn(`No routes are specified. The router will not render anything.`);
-		}
+export function createConfig(root = [], options) {
+	if (import.meta.env.DEV && root instanceof Array && root.length === 0) {
+		console.warn(`No routes are specified. The router will not render anything.`);
 	}
 
 	let duplicates = [];

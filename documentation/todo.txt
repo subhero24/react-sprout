@@ -2,6 +2,8 @@ Test: Nesting routers
 Test: 
 Redirect post request
 Redirect route with action
+Test:
+config with objects
 
 navigation
 - loading states
