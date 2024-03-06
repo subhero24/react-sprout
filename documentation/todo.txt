@@ -5,24 +5,3 @@ Redirect route with action
 Test:
 config with objects
 
-navigation
-- loading states
-- sticky navigation
-- relative navigation
-- aborting navigation
-- reloading
-
-routes
-- roots
-- actions
-- loaders
-- redirecting
-- search parameters
-
-actions
-- responses
-- redirecting
-
-loaders
-- responses
-- search parameters

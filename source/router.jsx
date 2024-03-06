@@ -324,12 +324,9 @@ export default function Routes(...args) {
 					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
 				} catch (error) {
 					if (error instanceof Response && error.status === 303) {
-						let pagesCount = pagesRef.current.length;
-						if (pagesCount > 1 && intent === FETCH) {
+						if (intent === FETCH) {
 							if (import.meta.env.DEV) {
-								console.warn(
-									'Action redirect response is ignored for this navigation as there are other concurrent navigations.',
-								);
+								console.warn('Action redirect response is ignored as the navigation happened from the same page.');
 							}
 						} else {
 							let location = error.headers.get('location');

@@ -85,6 +85,10 @@ export function matchDescriptor(descriptor, pathname, strict = false) {
 		rest = pathnameParts.slice(pathnamePartIndex);
 		base = base ?? root;
 
+		// root: starting point for child route matching
+		// base: starting point for relative links
+		// splat: splat to use in loaders
+		// rest: backup splat to use in components
 		return { root, base, rest, splat, params };
 	}
 }

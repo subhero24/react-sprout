@@ -5,6 +5,7 @@
 	"main": "build/index.js",
 	"source": "source/index.js",
 	"type": "module",
+	"types": "build/index.d.ts",
 	"exports": {
 		".": "./build/index.js",
 		"./express": "./build/express.js"
