@@ -57,8 +57,8 @@ type RouteConfig = DefaultRouteConfig | RedirectRouteConfig;
 type RoutesConfig = React.JSX.Element | RouteConfig | Array<React.JSX.Element> | Array<RouteConfig>;
 type RoutesOptions = {};
 
-export default function Routes(routes: RoutesConfig): React.ReactNode;
-export default function Routes(options: RoutesOptions, routes: RoutesConfig): React.ReactNode;
+export default function Routes(routes: RoutesConfig): Router;
+export default function Routes(options: RoutesOptions, routes: RoutesConfig): Router;
 
 interface NavigationOptions {
 	data?: any;
