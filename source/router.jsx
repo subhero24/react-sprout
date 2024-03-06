@@ -8,18 +8,11 @@ import { createLoaders } from './utilities/loaders.js';
 import { createPromise } from './utilities/promise.js';
 import { createElements } from './utilities/elements.js';
 import { createScheduler, resetScheduler } from './utilities/scheduler.js';
+import { createTransition } from './utilities/transition.js';
 
 import { nativeWindow } from './utilities/window.js';
 import { nativeHistory } from './utilities/history.js';
 import { nativeDocument } from './utilities/document.js';
-
-import { pathParts } from './utilities/path.js';
-
-import useRequest from './hooks/use-request.js';
-import useLastValue from './hooks/use-last-value.js';
-import useMountedRef from './hooks/use-mounted-ref.js';
-import useImmutableCallback from './hooks/use-immutable-callback.js';
-import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import { routerContext } from './hooks/use-router.js';
 import { actionsContext } from './hooks/use-actions.js';
@@ -33,8 +26,15 @@ import { GET, POST } from './constants.js';
 import { PUSH, REPLACE } from './constants.js';
 import { FETCH, RELOAD, TRANSITION } from './constants.js';
 
+import { pathParts } from './utilities/path.js';
+
+import useRequest from './hooks/use-request.js';
+import useLastValue from './hooks/use-last-value.js';
+import useMountedRef from './hooks/use-mounted-ref.js';
+import useImmutableCallback from './hooks/use-immutable-callback.js';
+import useStateWithCallback from './hooks/use-state-with-callback.js';
+
 import sleep from '../test/utilities/sleep.js';
-import startTransition from './utilities/transition.js';
 
 export default function Routes(...args) {
 	let options;
@@ -372,7 +372,7 @@ export default function Routes(...args) {
 					}
 				}
 
-				startTransition(sticky, () => {
+				createTransition(sticky, () => {
 					historyRef.current = { type, state };
 
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));

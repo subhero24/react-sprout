@@ -11,7 +11,7 @@ import { flushSync } from 'react-dom';
 // before the new page is rendered so a loading indicator is not flashed because of
 // an already resolved loader
 
-export default function transition(sticky, func) {
+export function createTransition(sticky, func) {
 	setTimeout(() => {
 		if (sticky) {
 			startTransition(func);

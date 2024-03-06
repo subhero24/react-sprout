@@ -13,7 +13,7 @@
 	"scripts": {
 		"lint": "eslint source/**/*.*",
 		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
-		"test": "node --test-concurrency 1 --test ./test/tests/**/test.spec.js",
+		"test": "node --test-concurrency 1 --test ./test/tests/**/**/test.spec.js",
 		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --jsx=automatic --minify --analyze",
 		"build-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react",
 		"develop": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --jsx=automatic --sourcemap --analyze --watch",
