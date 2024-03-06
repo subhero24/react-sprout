@@ -1,5 +1,8 @@
 import useMatch from './use-match.js';
 
 export default function useSplat() {
-	return useMatch()?.rest;
+	let match = useMatch();
+	if (match) {
+		return match.splat ?? match.rest;
+	}
 }

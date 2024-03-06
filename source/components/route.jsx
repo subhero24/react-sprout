@@ -22,9 +22,6 @@ export default function Route(props) {
 	let routeAction = actions?.match.config === match.config ? actions : superAction;
 	let routeLoader = loaders.find(loader => loader.match.config === match.config);
 
-	// A component can always inspect the full url, so we pass the rest of the pathname as splat,
-	// regardless wether a splat was used in the path descriptor of the route
-
 	return (
 		<matchContext.Provider value={match}>
 			<rootContext.Provider value={routeRoot}>

@@ -23,7 +23,7 @@ export function resolvePaths(...paths) {
 	for (let path of paths) {
 		if (path == undefined) continue;
 
-		[pathname, search = '', hash = ''] = pathParts(path);
+		[pathname, search, hash] = pathParts(path);
 
 		pathnameLeadingSlash = pathname.startsWith('/');
 		pathnameTrailingSlash = pathname.endsWith('/');

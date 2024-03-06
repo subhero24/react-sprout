@@ -32,6 +32,8 @@ export function createConfig(root = [], options) {
 		return sortedRoutes.map(element => {
 			let { type, path, root, to, status, loader, action, children } = element;
 
+			let [pathname, search] = pathParts(path);
+
 			let score = descriptorScore(path); // Extract this as it is calculated twice (also for sorting in the beginning)
 			if (action === true) action = createConfigAction(optionsPrefix);
 			if (loader === true) loader = createConfigLoader(optionsPrefix, level);
@@ -61,9 +63,9 @@ export function createConfig(root = [], options) {
 			}
 
 			if (type === Redirect) {
-				return { type, path, score, to, status, action };
+				return { type, path, pathname, search, score, to, status, action };
 			} else {
-				return { type, path, score, root, status, loader, action, children: childConfigs };
+				return { type, path, pathname, search, score, root, status, loader, action, children: childConfigs };
 			}
 		});
 	}

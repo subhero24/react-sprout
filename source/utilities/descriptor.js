@@ -1,6 +1,21 @@
-import { pathParts } from './path.js';
+import { joinPaths, pathParts } from './path.js';
 
 import { isEquivalentObject } from './object.js';
+
+export function resolveDescriptors(...descriptors) {
+	let result;
+	for (let descriptor of descriptors) {
+		if (descriptor == undefined) continue;
+
+		let descriptorHasLeadingSlash = descriptor.startsWith('/');
+		if (descriptorHasLeadingSlash) {
+			result = descriptor;
+		} else {
+			result = joinPaths(result, descriptor);
+		}
+	}
+	return result;
+}
 
 export function interpolateDescriptor(descriptor, params = {}, splat = []) {
 	if (descriptor == undefined) return;
@@ -21,66 +36,69 @@ export function interpolateDescriptor(descriptor, params = {}, splat = []) {
 	return segments.join('/') + search + hash;
 }
 
-export function matchDescriptor(pathnameDescriptor, pathname, strict = false) {
-	let pathnameParts = pathname.split('/').slice(1);
+export function matchDescriptor(descriptor, pathname, strict = false) {
 	let pathnameHasTrailingSlash = pathname.endsWith('/');
+	let descriptorHasTrailingSlash = descriptor.endsWith('/');
 
-	let descriptorParts = pathnameDescriptor.split('/').slice(1);
-	let descriptorHasTrailingSlash = pathnameDescriptor.endsWith('/');
-	let descriptorHasTrailingSlashWithSplat = pathnameDescriptor.endsWith('*/');
+	if (strict && pathnameHasTrailingSlash !== descriptorHasTrailingSlash) return;
 
-	if (strict === true && pathnameHasTrailingSlash !== descriptorHasTrailingSlash) return;
-	if (strict === false && descriptorHasTrailingSlashWithSplat && !pathnameHasTrailingSlash) return;
+	let pathnameParts = pathname.split('/').slice(1, pathnameHasTrailingSlash ? -1 : undefined);
+	let descriptorParts = descriptor.split('/').slice(1, descriptorHasTrailingSlash ? -1 : undefined);
 
-	let base;
+	let root;
 	let rest;
+	let base;
 	let splat;
-	let match;
 	let params = {};
+
 	let pathnamePartIndex = 0;
 	for (let descriptorPartIndex = 0; descriptorPartIndex < descriptorParts.length; descriptorPartIndex++) {
-		let pathnamePart = pathnameParts[pathnamePartIndex];
 		let descriptorPart = descriptorParts[descriptorPartIndex];
 
-		if (pathnamePart == undefined) return;
+		if (isDotSegment(descriptorPart)) {
+			continue;
+		} else if (isDotDotSegment(descriptorPart)) {
+			pathnamePartIndex--;
+		} else {
+			let pathnamePart = pathnameParts[pathnamePartIndex];
+			if (pathnamePart == undefined) return;
 
-		let isLastDescriptorPart = descriptorPartIndex === descriptorParts.length - 1;
-		let isEmptyDescriptorPart = descriptorPart === '';
-		if (isEmptyDescriptorPart && isLastDescriptorPart) break;
-
-		if (isStaticSegment(descriptorPart)) {
-			if (pathnamePart !== descriptorPart) return;
-		} else if (isParamSegment(descriptorPart)) {
-			let paramName = descriptorPart.slice(1);
-			if (paramName.length) {
-				params[paramName] = pathnamePart;
+			if (isStaticSegment(descriptorPart)) {
+				if (pathnamePart !== descriptorPart) return;
+			} else if (isParamSegment(descriptorPart)) {
+				let paramName = descriptorPart.slice(1);
+				if (paramName.length) {
+					params[paramName] = pathnamePart;
+				}
+			} else if (isSplatSegment(descriptorPart)) {
+				base = base ?? '/' + pathnameParts.slice(0, pathnamePartIndex).join('/');
+				splat = splat ?? pathnameParts.slice(pathnamePartIndex);
+				pathnamePartIndex = pathnameParts.length - 1;
 			}
-		} else if (isSplatSegment(descriptorPart)) {
-			let splatNeedsSlicing = pathnameHasTrailingSlash ? -1 : undefined;
-			let matchNeedsSlicing = pathnameHasTrailingSlash && !descriptorHasTrailingSlash ? -1 : undefined;
-
-			match = '/' + pathnameParts.slice(0, matchNeedsSlicing).join('/');
-			splat = pathnameParts.slice(pathnamePartIndex, splatNeedsSlicing);
-			break;
+			pathnamePartIndex++;
 		}
-
-		pathnamePartIndex++;
 	}
 
-	let complete = pathnamePartIndex === pathnameParts.length - (pathnameHasTrailingSlash ? 1 : 0);
-	if (complete || splat != undefined || strict === false) {
-		let restNeedsSlicing = pathnameHasTrailingSlash ? -1 : undefined;
+	let complete = pathnamePartIndex === pathnameParts.length;
+	if (complete || strict === false) {
+		root = '/' + pathnameParts.slice(0, pathnamePartIndex).join('/');
+		rest = pathnameParts.slice(pathnamePartIndex);
+		base = base ?? root;
 
-		base = '/' + pathnameParts.slice(0, pathnamePartIndex).join('/');
-		rest = pathnameParts.slice(pathnamePartIndex, restNeedsSlicing);
-		match = match ?? base;
-
-		return { base, pathname: match, rest, splat, params };
+		return { root, base, rest, splat, params };
 	}
 }
 
 export function isSplatSegment(segment) {
 	return segment === '*';
+}
+
+export function isDotSegment(segment) {
+	return segment === '.';
+}
+
+export function isDotDotSegment(segment) {
+	return segment === '..';
 }
 
 export function isParamSegment(segment) {

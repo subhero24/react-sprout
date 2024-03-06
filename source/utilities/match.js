@@ -1,28 +1,25 @@
 import Redirect from '../components/redirect.jsx';
 
-import { pathParts, resolvePaths } from './path.js';
+import { resolvePaths } from './path.js';
 import { isEquivalentObject } from './object.js';
 import { matchQuery, filterQuery } from './query.js';
-import { matchDescriptor, interpolateDescriptor, descriptorScore } from './descriptor.js';
+import { matchDescriptor, interpolateDescriptor, resolveDescriptors } from './descriptor.js';
 
 export function createMatch(configs, requested, context) {
-	let { root = '/', params: parentParams = {}, matched } = context ?? {};
+	let { root: parentRoot = '/', params: parentParams = {}, matched } = context ?? {};
 
 	let location = new URL(requested.url);
 	for (let config of configs) {
 		if (matched && config.score < matched.config.score) return;
 
-		let [pathPathname, pathSearch] = pathParts(config.path);
-
-		let strict = config.children == undefined && pathPathname !== '';
-		let pathnameDescriptor = resolvePaths(root, pathPathname);
-
-		let matchedSearch = matchQuery(pathSearch, location.search);
-		let matchedDescriptor = matchDescriptor(pathnameDescriptor, location.pathname, strict);
+		let strict = config.children == undefined && config.pathname !== '';
+		let pathname = resolveDescriptors(parentRoot, config.pathname);
+		let matchedSearch = matchQuery(config.search, location.search);
+		let matchedDescriptor = matchDescriptor(pathname, location.pathname, strict);
 		if (matchedDescriptor && matchedSearch) {
-			let { base, pathname, rest, splat, params: elementParams } = matchedDescriptor;
+			let { root, base, rest, splat, params: matchedParams } = matchedDescriptor;
 
-			let params = { ...parentParams, ...elementParams };
+			let params = { ...parentParams, ...matchedParams };
 
 			let type = config.type;
 			if (type === Redirect) {
@@ -33,26 +30,26 @@ export function createMatch(configs, requested, context) {
 					path = interpolateDescriptor(config.to, params, splat);
 				}
 
-				let redirectPath = resolvePaths(root, path);
+				let redirectPath = resolvePaths(parentRoot, path);
 				let redirectUrl = new URL(redirectPath, location);
 
 				throw Response.redirect(redirectUrl, config.status ?? 308);
 			}
 
 			let request;
-			let searchParams = filterQuery(location.search, pathSearch);
+			let searchParams = filterQuery(location.search, config.search);
 			let searchKeys = [...searchParams.keys()];
 			if (searchKeys.length) {
-				request = new Request(new URL(pathname + '?' + searchParams, location));
+				request = new Request(new URL(root + '?' + searchParams, location));
 			} else {
-				request = new Request(new URL(pathname, location));
+				request = new Request(new URL(root, location));
 			}
 
 			let match = { config, request, base, rest, splat, params };
 
 			let children = config.children;
 			if (children?.length) {
-				let matches = createMatch(children, requested, { root: base, params, matched: matched?.children });
+				let matches = createMatch(children, requested, { root, params, matched: matched?.children });
 				if (matches == undefined) continue;
 				if (matched) matched = match;
 

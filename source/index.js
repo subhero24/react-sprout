@@ -17,5 +17,4 @@ export { default as useLocation } from './hooks/use-location.js';
 export { default as useActionError } from './hooks/use-action-error.js';
 export { default as useActionResult } from './hooks/use-action-result.js';
 export { default as useLoaderResult } from './hooks/use-loader-result.js';
-// export { default as usePath }
 export { default as useResolve } from './hooks/use-resolve.js';
