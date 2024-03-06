@@ -10,7 +10,7 @@ let root = appendChild(document.body, <div id="root" />);
 function Root() {
 	let [canceled, setCanceled] = useState(false);
 
-	function handleCancel() {
+	function handleCanceled() {
 		setCanceled(true);
 	}
 
@@ -26,7 +26,7 @@ function Root() {
 	return (
 		<>
 			{cancelElement}
-			<Router onNavigate={handleNavigate} onCancel={handleCancel} />
+			<Router onNavigate={handleNavigate} onCanceled={handleCanceled} />
 		</>
 	);
 }

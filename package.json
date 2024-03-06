@@ -14,9 +14,9 @@
 		"lint": "eslint source/**/*.*",
 		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
 		"test": "node --test-concurrency 1 --test ./test/tests/**/**/test.spec.js",
-		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --jsx=automatic --minify --analyze",
+		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --minify --analyze",
 		"build-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react",
-		"develop": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --jsx=automatic --sourcemap --analyze --watch",
+		"develop": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --sourcemap --analyze --watch",
 		"develop-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --sourcemap --analyze --watch",
 		"prepare": "npm run build && npm run build-express && cp source/index.d.ts build/index.d.ts"
 	},

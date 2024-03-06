@@ -60,8 +60,8 @@ export default function Routes(...args) {
 			delayLoadingMs = defaultOptions.delayLoadingMs,
 			minimumLoadingMs = defaultOptions.minimumLoadingMs,
 			defaultFormMethod = defaultOptions.defaultFormMethod,
-			onCancel: onRouterCancel,
 			onAborted: onRouterAborted,
+			onCanceled: onRouterCancel,
 			onNavigate: onRouterNavigate,
 			onActionError: onRouterActionError,
 			onNavigateEnd: onRouterNavigateEnd,
@@ -210,8 +210,8 @@ export default function Routes(...args) {
 				cache = false,
 				reload = false,
 				sticky = stickyDefault,
-				onCancel,
 				onAborted,
+				onCanceled,
 				onNavigate,
 				onActionError,
 				onNavigateEnd,
@@ -278,7 +278,7 @@ export default function Routes(...args) {
 			}
 
 			if (event.defaultPrevented) {
-				onCancel?.(event);
+				onCanceled?.(event);
 				onRouterCancelCallback(event);
 				return;
 			}

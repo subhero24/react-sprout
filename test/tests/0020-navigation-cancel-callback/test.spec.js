@@ -6,7 +6,7 @@ import setup from '../../utilities/setup.js';
 
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url));
 
-Test('router onCancel callback is called', async () => {
+Test('router onCanceled callback is called', async () => {
 	await setup(currentDirectory, '/a', async function ({ page }) {
 		await page.click('a');
 		await page.waitForSelector('#cancel', { timeout: 500 });

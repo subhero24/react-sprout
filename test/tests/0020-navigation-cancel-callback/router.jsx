@@ -4,7 +4,7 @@ import Routes, { Link } from '../../../source/index.js';
 function RouteA() {
 	let [canceled, setCanceled] = useState(false);
 
-	function handleCancel() {
+	function handleCanceled() {
 		setCanceled(true);
 	}
 
@@ -20,7 +20,7 @@ function RouteA() {
 	return (
 		<>
 			{cancelElement}
-			<Link href="/b" onCancel={handleCancel} onNavigate={handleNavigate}>
+			<Link href="/b" onCanceled={handleCanceled} onNavigate={handleNavigate}>
 				Navigate to B
 			</Link>
 		</>

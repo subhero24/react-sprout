@@ -22,19 +22,35 @@ type LoaderOptions = {
 
 type DefaultRouteConfig = {
 	type: React.ReactNode;
-	path: string;
-	root: boolean;
-	loader: Loader;
-	action: Action;
-	children: Array<RouteConfig>;
+	path?: string;
+	root?: boolean;
+	loader?: Loader;
+	action?: Action;
+	children?: Array<RouteConfig>;
 };
 
 type RedirectTo = (options: RedirectOptions) => string;
 type RedirectOptions = { splat: Array<string>; params: object };
 type RedirectRouteConfig = {
 	type: React.ReactNode;
-	path: string;
+	path?: string;
 	to: string | RedirectTo;
+};
+
+type Router = (props: RouterProps) => React.JSX.Element;
+type RouterProps = {
+	request?: Request;
+	defaultRequest?: Request;
+	sticky?: boolean;
+	dataTransform?: (data: any) => any;
+	delayLoadingMs?: number;
+	minimumLoadingMs?: number;
+	defaultFormMethod?: string;
+	onAborted?: (event: CustomEvent, reason: any) => void;
+	onCanceled?: (event: CustomEvent) => void;
+	onNavigate?: (event: CustomEvent) => void;
+	onNavigateEnd?: (event: CustomEvent) => void;
+	onNavigateStart?: (event: CustomEvent) => void;
 };
 
 type RouteConfig = DefaultRouteConfig | RedirectRouteConfig;
@@ -50,14 +66,14 @@ interface NavigationOptions {
 	replace?: boolean;
 	title?: string;
 	state?: any;
-	data?: any;
 	cache?: boolean;
 	sticky?: boolean;
 	reload?: boolean;
 	relative?: boolean;
-	onAbort?: (event: CustomEvent, reason: any) => void;
-	onCancel?: (event: CustomEvent) => void;
+	onAborted?: (event: CustomEvent, reason: any) => void;
+	onCanceled?: (event: CustomEvent) => void;
 	onNavigate?: (event: CustomEvent) => void;
+	onActionError?: (event: CustomEvent, error: Error) => void;
 	onNavigateEnd?: (event: CustomEvent) => void;
 	onNavigateStart?: (event: CustomEvent) => void;
 }
@@ -67,7 +83,7 @@ interface LinkProps extends React.LinkHTMLAttributes<HTMLAnchorElement>, Navigat
 export function Link(props: LinkProps): React.JSX.Element;
 
 interface FormProps extends React.FormHTMLAttributes<HTMLFormElement>, NavigationOptions {
-	onActionError?: (event: CustomEvent, error, Error) => void;
+	onActionError?: (event: CustomEvent, error: Error) => void;
 }
 
 export function Form(props: FormProps): React.JSX.Element;

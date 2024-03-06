@@ -10,7 +10,7 @@ export function createMatch(configs, requested, context) {
 
 	let location = new URL(requested.url);
 	for (let config of configs) {
-		if (matched && config.score < matched.config.score) return;
+		if (matched && config.score < matched.config.score) break;
 
 		let strict = config.children == undefined && config.pathname !== '';
 		let pathname = resolveDescriptors(parentRoot, config.pathname);
