@@ -9,7 +9,7 @@ export function createRender(configs, request) {
 		let path = urlToPath(new URL(request.url));
 		try {
 			let root = createMatch(configs, request);
-			if (root == undefined && import.meta.env.DEV) {
+			if (root == undefined && process.env.NODE_ENV) {
 				console.warn(`No routes matched ${path}`);
 			}
 
@@ -24,7 +24,7 @@ export function createRender(configs, request) {
 				let redirectUrl = new URL(location);
 				let redirectPath = urlToPath(redirectUrl);
 
-				if (import.meta.env.DEV) {
+				if (process.env.NODE_ENV) {
 					console.debug(`Redirecting from ${path} to ${redirectPath}`);
 				}
 

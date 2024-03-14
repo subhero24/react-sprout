@@ -15,7 +15,7 @@
 		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
 		"test": "node --test-concurrency 1 --test ./test/tests/**/**/test.spec.js",
 		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --minify --analyze",
-		"build-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react",
+		"build-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --minify --analyze",
 		"develop": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --sourcemap --analyze --watch",
 		"develop-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --sourcemap --analyze --watch",
 		"prepare": "npm run build && npm run build-express && cp source/index.d.ts build/index.d.ts"
@@ -28,6 +28,7 @@
 		"eslint": "^8.56.0",
 		"eslint-plugin-react": "^7.33.2",
 		"eslint-plugin-react-hooks": "^4.6.0",
+		"express": "^4.18.3",
 		"prettier": "^3.1.1",
 		"puppeteer": "^21.6.1",
 		"puppeteer-extra": "^3.3.6",

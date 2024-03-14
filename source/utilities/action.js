@@ -1,5 +1,4 @@
-import { createData as createRequestData } from './request.js';
-import { createData as createResponseData } from './response.js';
+import { createData } from './data.js';
 import { createResource } from './resource.js';
 
 export function createAction(render, options) {
@@ -13,18 +12,19 @@ export function createAction(render, options) {
 	}
 
 	if (match == undefined) {
-		if (import.meta.env.DEV) {
+		if (process.env.NODE_ENV) {
 			console.warn(`No action handler was found for ${new URL(render.request.url).pathname}`);
 		}
 	} else {
 		let action = match.config.action;
 		let request = render.request;
 
+		let signal = request.signal;
 		let promise = createActionPromise();
 		let resource = createResource(promise, scheduler);
 		let controller = new AbortController();
 
-		request.signal.addEventListener('abort', () => controller.abort(), { once: true });
+		signal.addEventListener('abort', () => controller.abort(), { once: true });
 
 		return { match, promise, resource, controller };
 
@@ -32,12 +32,12 @@ export function createAction(render, options) {
 			let actionResult;
 			let actionType = typeof action;
 			if (actionType === 'function') {
-				let { url, signal } = request;
 				let { splat, params } = match;
 
+				let url = new URL(request.url);
 				let data = event?.detail.data;
 				if (data == undefined) {
-					data = await createRequestData(request);
+					data = await createData(request);
 					if (dataTransform) {
 						data = dataTransform(data);
 					}
@@ -49,7 +49,16 @@ export function createAction(render, options) {
 			}
 
 			if (actionResult instanceof Response) {
-				return createResponseData(actionResult);
+				if (actionResult.ok) {
+					return await createData(actionResult);
+				} else {
+					let status = actionResult.status;
+					if (status >= 300 && status < 400) {
+						return actionResult;
+					} else {
+						throw actionResult;
+					}
+				}
 			} else {
 				return actionResult;
 			}

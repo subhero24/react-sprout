@@ -1,6 +1,5 @@
-import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useInsertionEffect, useMemo, useRef, useState } from 'react';
 
-import { createData } from './utilities/response.js';
 import { createConfig } from './utilities/config.js';
 import { createRender } from './utilities/render.js';
 import { createAction } from './utilities/action.js';
@@ -31,6 +30,7 @@ import { pathParts } from './utilities/path.js';
 import useRequest from './hooks/use-request.js';
 import useLastValue from './hooks/use-last-value.js';
 import useMountedRef from './hooks/use-mounted-ref.js';
+import useLayoutEffect from './hooks/use-layout-effect.js';
 import useImmutableCallback from './hooks/use-immutable-callback.js';
 import useStateWithCallback from './hooks/use-state-with-callback.js';
 
@@ -207,6 +207,7 @@ export default function Routes(...args) {
 				title,
 				state,
 				data,
+				target,
 				cache = false,
 				reload = false,
 				sticky = stickyDefault,
@@ -265,7 +266,7 @@ export default function Routes(...args) {
 			// This is a bug and could be tested in console with:
 			// (new Request('url', { body: new FormData(), method: 'POST' })).formData()
 			// This should work, and works fine in firefox
-			if (import.meta.env.DEV && body instanceof FormData && [...body].length === 0) {
+			if (process.env.NODE_ENV && body instanceof FormData && [...body].length === 0) {
 				console.warn(
 					`FormData has no entries. This will result in a "failed to fetch" error in Chrome. Make sure your form has at least 1 named input field.`,
 				);
@@ -273,8 +274,8 @@ export default function Routes(...args) {
 
 			onNavigate?.(event);
 			onRouterNavigateCallback(event);
-			if (native) {
-				nativeWindow?.dispatchEvent(event);
+			if (target) {
+				target.dispatchEvent(event);
 			}
 
 			if (event.defaultPrevented) {
@@ -320,32 +321,24 @@ export default function Routes(...args) {
 			try {
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
-				try {
-					await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
-				} catch (error) {
-					if (error instanceof Response && error.status === 303) {
-						if (intent === FETCH) {
-							if (import.meta.env.DEV) {
-								console.warn('Action redirect response is ignored as the navigation happened from the same page.');
-							}
-						} else {
-							let location = error.headers.get('location');
-							let redirect = new Request(location);
-							redirectedPage = createPage(redirect, { cache: page, event, callbacks });
+				let actionResult = await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+				if (actionResult instanceof Response && actionResult.status === 303) {
+					if (intent === FETCH) {
+						if (process.env.NODE_ENV) {
+							console.warn(
+								'Redirect response from the action ignored as the target url was the same as the current page.',
+							);
 						}
 					} else {
-						throw error;
+						let location = actionResult.headers.get('location');
+						let redirect = new Request(location);
+						redirectedPage = createPage(redirect, { cache: page, event, callbacks });
 					}
 				}
 
 				// Setting a function as state allows late binding to the action result
 				if (typeof state === 'function') {
-					let actionResult = navigationPage.action?.resource.result;
-					if (actionResult instanceof Response) {
-						actionResult = await createData(actionResult);
-					}
-
-					state = await state(actionResult);
+					state = await state(navigationPage.action?.resource.result);
 				}
 
 				// Change this after the state update function because we need the old navigationPage action to update the state
@@ -575,16 +568,18 @@ export default function Routes(...args) {
 					result.action = createAction(render, { event, scheduler, dataTransform });
 
 					try {
-						await Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise]);
+						return await Promise.race([
+							result.promise,
+							event ? result.action?.resource.promise : result.action?.promise,
+						]);
 					} catch (error) {
 						if (event) {
-							if (error instanceof Response === false || error.status >= 400) {
-								callbacks?.onActionError?.(event, error);
-								onRouterActionErrorCallback(event, error);
-							}
+							callbacks?.onActionError?.(event, error);
+							onRouterActionErrorCallback(event, error);
 
-							throw error;
+							// if (error instanceof Response === false || error.status >= 400) {
 						}
+						throw error;
 					} finally {
 						result.timestamp = Date.now();
 					}
@@ -618,7 +613,7 @@ export default function Routes(...args) {
 
 					return loaderResults;
 				} catch (error) {
-					if (import.meta.env.DEV) {
+					if (process.env.NODE_ENV) {
 						console.warn(error);
 					}
 				}

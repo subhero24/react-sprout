@@ -4,68 +4,68 @@ import Redirect from '../components/redirect.jsx';
 
 import configConsole from './console.js';
 
-import { joinPaths, pathParts, resolvePaths } from './path.js';
 import { childrenToArray } from './children.js';
 import { descriptorScore, descriptorStructure, equivalentDescriptors } from './descriptor.js';
+import { joinPaths, pathParts, resolvePaths } from './path.js';
 
 export function createConfig(root = [], options) {
-	if (import.meta.env.DEV && root instanceof Array && root.length === 0) {
+	if (import.meta.env?.DEV && root instanceof Array && root.length === 0) {
 		console.warn(`No routes are specified. The router will not render anything.`);
 	}
 
 	let duplicates = [];
-	let optionsPrefix = options?.prefix ?? '';
 
 	let rootRoute = createRouteObject(root);
 	let rootConfigs = createConfigs([rootRoute]);
 
 	return rootConfigs;
 
-	function createConfigs(routes, options) {
-		let { base = '/', level = 0 } = options ?? {};
+	function createConfigs(routes, context) {
+		let { base = '/', level = 0 } = context ?? {};
 
 		let validRoutes = routes.filter(verifyNoRouteErrors);
-		let sortedRoutes = sortRoutesByDescriptorScore(validRoutes);
+		let validScores = routeDescriptorScores(validRoutes);
+		let sortedRoutes = sortRoutesByDescriptorScore(validRoutes, validScores);
 
 		validRoutes.forEach(verifyNoRouteWarnings);
 
-		return sortedRoutes.map(element => {
-			let { type, path, root, to, status, loader, action, children } = element;
+		return sortedRoutes.map(route => {
+			let { type, path, root, to, status, loader, action, children } = route;
 
 			let [pathname, search] = pathParts(path);
 
-			let score = descriptorScore(path); // Extract this as it is calculated twice (also for sorting in the beginning)
-			if (action === true) action = createConfigAction(optionsPrefix);
-			if (loader === true) loader = createConfigLoader(optionsPrefix, level);
+			let score = validScores[path];
+			if (action === true) action = createConfigAction(options, context);
+			if (loader === true) loader = createConfigLoader(options, context);
 
 			let childBase = resolvePaths(base, path);
-			let childOptions;
+			let childContext;
 			let childConfigs;
 
 			let childrenArray = childrenToArray(children);
 			if (childrenArray.length) {
-				childOptions = { base: childBase, level: level + 1 };
-				childConfigs = createConfigs(childrenArray, childOptions);
+				childContext = { base: childBase, level: level + 1 };
+				childConfigs = createConfigs(childrenArray, childContext);
 			} else {
 				let descriptorPath = path == undefined ? joinPaths(childBase, '*') : childBase;
 
 				let structure = descriptorStructure(descriptorPath);
 				let duplicate = duplicates.find(duplicate => equivalentDescriptors(duplicate.structure, structure));
-				if (duplicate && import.meta.env.DEV) {
+				if (duplicate && process.env.NODE_ENV) {
 					configConsole.warn(
 						`There are two routes which will match the same url. The second route will never render.`,
 						rootRoute,
-						[duplicate.element, element],
+						[duplicate.route, route],
 					);
 				} else {
-					duplicates.push({ element, structure });
+					duplicates.push({ route, structure });
 				}
 			}
 
 			if (type === Redirect) {
-				return { type, path, pathname, search, score, to, status, action };
+				return { type, path, pathname, search, score, level, to, status, action };
 			} else {
-				return { type, path, pathname, search, score, root, status, loader, action, children: childConfigs };
+				return { type, path, pathname, search, score, level, root, status, loader, action, children: childConfigs };
 			}
 		});
 	}
@@ -78,7 +78,7 @@ export function createConfig(root = [], options) {
 		try {
 			assertNoRouteErrors(route);
 		} catch (error) {
-			if (import.meta.env.DEV && error instanceof RouterConfigError) {
+			if (process.env.NODE_ENV && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, rootRoute, [route]);
 				return false;
 			} else {
@@ -100,7 +100,7 @@ export function createConfig(root = [], options) {
 		try {
 			assertNoRouteWarnings(route);
 		} catch (error) {
-			if (import.meta.env.DEV && error instanceof RouterConfigError) {
+			if (process.env.NODE_ENV && error instanceof RouterConfigError) {
 				configConsole.warn(error.message, rootRoute, [route]);
 			} else {
 				throw error;
@@ -141,23 +141,6 @@ function createRouteObject(root) {
 			}
 		});
 	}
-}
-
-function sortRoutesByDescriptorScore(routes) {
-	let scores = {};
-	for (let route of routes) {
-		let path = route.path;
-		if (scores[path] == undefined) {
-			scores[path] = descriptorScore(path);
-		}
-	}
-
-	return routes.sort(function (a, b) {
-		if (scores[a.path] < scores[b.path]) return 1;
-		if (scores[a.path] > scores[b.path]) return -1;
-
-		return 0;
-	});
 }
 
 export class RouterConfigError extends Error {}
@@ -205,55 +188,59 @@ function assertRoutePathHasNoHash(element) {
 	}
 }
 
-export function createConfigLoader(prefix, level) {
-	return async function loader({ request }) {
-		let url = new URL(request.url);
-		let response = await fetch(`${prefix}${url.pathname}${url.search}`, {
-			headers: {
-				Accept: 'application/json',
-				Range: `route=${level}`,
-			},
+function routeDescriptorScores(routes) {
+	// We use an object instead of a map because we would like a score for an 'undefined' path
+	let scores = {};
+	for (let route of routes) {
+		let path = route.path;
+		let score = scores[path];
+		if (score == undefined) {
+			scores[path] = descriptorScore(path);
+		}
+	}
+	return scores;
+}
+
+function sortRoutesByDescriptorScore(routes, scores) {
+	return routes.sort(function (a, b) {
+		let scoreA = scores[a.path];
+		let scoreB = scores[b.path];
+
+		if (scoreA < scoreB) return 1;
+		if (scoreA > scoreB) return -1;
+
+		return 0;
+	});
+}
+
+export function createConfigLoader(options, context) {
+	let level = context?.level;
+	let prefix = options?.prefix ?? '';
+
+	return async function loader({ url }) {
+		return fetch(`${prefix}${url.pathname}${url.search}`, {
+			headers: { Accept: 'application/json', Range: `route=${level}` },
 		});
-
-		let result;
-		let contentType = response.headers.get('content-type');
-		let contentLength = response.headers.get('content-length');
-		if (contentLength > 0 && contentType?.includes('application/json')) {
-			result = await response.json();
-		} else {
-			result = await response.text();
-		}
-
-		if (response.ok) {
-			return result;
-		} else {
-			throw response;
-		}
 	};
 }
 
-export function createConfigAction(prefix) {
-	return async function action({ request }) {
-		let url = new URL(request.url);
-		let response = await fetch(`${prefix}${url.pathname}${url.search}`, {
+export function createConfigAction(options) {
+	let prefix = options?.prefix ?? '';
+
+	return async function action({ url, data }) {
+		let requestPathname = `${url.pathname}${url.search}`;
+		let response = await fetch(`${prefix}${requestPathname}`, {
 			method: 'POST',
-			body: request.body,
-			headers: { Accept: 'application/json' },
+			body: JSON.stringify(data),
+			headers: { 'Content-Type': 'application/json' },
 		});
 
-		let result;
-		let contentType = response.headers.get('Content-Type');
-		let contentLength = response.headers.get('content-length');
-		if (contentLength > 0 && contentType?.includes('application/json')) {
-			result = await response.json();
-		} else {
-			result = await response.text();
+		let responseUrl = new URL(response.url);
+		let responsePathname = responseUrl.href.slice(responseUrl.origin.length);
+		if (responsePathname !== requestPathname) {
+			return Response.redirect(responseUrl, 303);
 		}
 
-		if (response.ok) {
-			return result;
-		} else {
-			throw response;
-		}
+		return response;
 	};
 }

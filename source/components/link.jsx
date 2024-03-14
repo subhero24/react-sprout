@@ -40,6 +40,8 @@ function Link(props, ref) {
 			if (shouldNavigate && router) {
 				event.preventDefault();
 
+				let target = event.currentTarget;
+
 				// Resolve always returns an absolute path, so we can use the components router without a problem
 				router.navigate(resolvedPath, {
 					data,
@@ -50,6 +52,7 @@ function Link(props, ref) {
 					replace,
 					sticky,
 					reload,
+					target,
 					onAborted,
 					onCanceled,
 					onNavigate,

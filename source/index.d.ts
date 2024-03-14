@@ -78,32 +78,6 @@ interface NavigationOptions {
 	onNavigateStart?: (event: CustomEvent) => void;
 }
 
-interface LinkProps extends React.LinkHTMLAttributes<HTMLAnchorElement>, NavigationOptions {}
-
-export function Link(props: LinkProps): React.JSX.Element;
-
-interface FormProps extends React.FormHTMLAttributes<HTMLFormElement>, NavigationOptions {
-	onActionError?: (event: CustomEvent, error: Error) => void;
-}
-
-export function Form(props: FormProps): React.JSX.Element;
-
-type RequestProps = { value?: Request; defaultValue?: Request };
-
-export function Request(props: RequestProps): React.JSX.Element;
-
-type RedirectProps = {};
-
-export function Redirect(props: RedirectProps): React.JSX.Element;
-
-type Link = (props: LinkProps) => React.JSX.Element;
-
-export function useLink(): [link: Link, busy: boolean, loading: boolean, navigations: Array<Navigation>];
-
-type Form = (props: FormProps) => React.JSX.Element;
-
-export function useForm(): [form: Form, busy: boolean, loading: boolean, navigations: Array<Navigation>];
-
 interface NavigateToOptions extends NavigationOptions {
 	method: string;
 	onActionError?: (event: CustomEvent, error: Error) => void;
@@ -112,6 +86,22 @@ interface NavigateToOptions extends NavigationOptions {
 interface NavigateOptions extends NavigateToOptions {
 	to: string;
 }
+
+interface LinkProps extends React.LinkHTMLAttributes<HTMLAnchorElement>, NavigationOptions {}
+export let Link: React.FC<LinkProps>;
+export function useLink(): [link: React.FC<LinkProps>, busy: boolean, loading: boolean, navigations: Array<Navigation>];
+
+interface FormProps extends React.FormHTMLAttributes<HTMLFormElement>, NavigationOptions {
+	onActionError?: (event: CustomEvent, error: Error) => void;
+}
+export let Form: React.FC<FormProps>;
+export function useForm(): [form: React.FC<FormProps>, busy: boolean, loading: boolean, navigations: Array<Navigation>];
+
+type RequestProps = { value?: Request; defaultValue?: Request };
+export let Request: React.FC<RequestProps>;
+
+type RedirectProps = {};
+export let Redirect: React.FC<RedirectProps>;
 
 type Navigate = (options: NavigateOptions) => void;
 type NavigateTo = (to: string, options: NavigateToOptions) => void;

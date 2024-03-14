@@ -50,6 +50,7 @@ function Form(props, ref) {
 			if (shouldNavigate && router) {
 				event.preventDefault();
 
+				let target = form;
 				let action = submitter?.getAttribute('formaction') ?? resolvedPath;
 				let method = submitter?.getAttribute('formmethod') ?? form.getAttribute('method') ?? GET;
 				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
@@ -69,6 +70,7 @@ function Form(props, ref) {
 					cache,
 					reload,
 					method,
+					target,
 					sticky,
 					onAborted,
 					onCanceled,

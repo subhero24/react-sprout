@@ -1,4 +1,4 @@
-import { createData } from './response.js';
+import { createData } from './data.js';
 import { createResource } from './resource.js';
 import { isEquivalentMatch } from './match.js';
 
@@ -13,9 +13,10 @@ export function createLoaders(render, options = {}) {
 		if (loader) {
 			let result = loaders?.find(loader => !loader.dirty && isEquivalentMatch(match, loader.match));
 			if (result == undefined) {
-				let { url, signal } = render.request;
+				let request = render.request;
 
 				let dirty = false;
+				let signal = request.signal;
 				let promise = createLoaderPromise();
 				let resource = createResource(promise, scheduler);
 				let controller = new AbortController();
@@ -32,13 +33,19 @@ export function createLoaders(render, options = {}) {
 					if (loaderType === 'function') {
 						let { splat, params } = match;
 
+						let url = new URL(request.url);
+
 						loaderResult = await loader({ url, splat, params, signal });
 					} else {
 						loaderResult = await loader;
 					}
 
 					if (loaderResult instanceof Response) {
-						return createData(loaderResult);
+						if (loaderResult.ok) {
+							return await createData(loaderResult);
+						} else {
+							throw loaderResult;
+						}
 					} else {
 						return loaderResult;
 					}
