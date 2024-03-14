@@ -5,8 +5,6 @@ import { renderToPipeableStream } from 'react-dom/server';
 
 import scriptUrl from './index.jsx?url';
 
-console.log(scriptUrl);
-
 export default function (request, response) {
 	const { pipe } = renderToPipeableStream(
 		<Request defaultValue={request}>

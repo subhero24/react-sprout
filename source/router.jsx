@@ -142,7 +142,7 @@ export default function Routes(...args) {
 			let request = initialRequest ?? nativeRequest;
 			if (request == undefined) {
 				throw new Error(
-					`There is no "request" available for the router. Please provide a "request" or "defaultRequest" property to your <Router> element, or alternatively wrap your <Router> within a <RouterRequest> element.`,
+					`There is no "request" available for the router. Please provide a "request" or "defaultRequest" property to your <Router> element, or alternatively wrap your <Router> within a <Request> element.`,
 				);
 			}
 
