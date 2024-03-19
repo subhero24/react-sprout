@@ -30,12 +30,9 @@ export default function Routes(...args) {
 
 				let match = createMatch(config, request);
 				if (match) {
-					console.log(match);
 					while (match && match.config.level != range.level) {
 						match = match.children;
 					}
-
-					console.log(match, range);
 
 					if (match == undefined) throw new Error('Route range too high');
 
@@ -45,7 +42,7 @@ export default function Routes(...args) {
 					let loader = match.config.loader;
 					if (loader) {
 						if (typeof loader === 'function') {
-							result = await loader({ url, splat, params, signal: request.signal });
+							result = await loader({ url, splat, params, signal: request.signal, request: req });
 						} else {
 							result = loader;
 						}
@@ -53,13 +50,10 @@ export default function Routes(...args) {
 
 					if (result instanceof Response) {
 						res.status(result.status);
-
-						if (result.ok) {
-							result = await createData(result);
-						}
+						res.send(await createData(result));
+					} else {
+						res.send(result);
 					}
-
-					return res.json(result).end();
 				} else {
 					next();
 				}
@@ -97,7 +91,7 @@ export default function Routes(...args) {
 						let data = await createData(request);
 						let signal = request.signal;
 
-						result = await action({ url, splat, params, data, signal });
+						result = await action({ url, splat, params, data, signal, request: req });
 					} else {
 						result = action;
 					}
@@ -105,19 +99,13 @@ export default function Routes(...args) {
 					if (result instanceof Response) {
 						let status = result.status;
 						if (status >= 300 && status < 400) {
-							// result.headers.get('location')
-							res.redirect(result.status, '/settings');
+							res.redirect(result.status, result.headers.get('location'));
 						} else {
 							res.status(status);
-							if (result.ok) {
-								result = await createData(result);
-
-								res.json(result);
-							}
+							res.send(await createData(result));
 						}
 					} else {
-						// TODO: other type of results
-						res.json(result);
+						res.send(result);
 					}
 				} else {
 					next();
@@ -134,16 +122,10 @@ export default function Routes(...args) {
 		try {
 			if (error instanceof Response) {
 				res.status(error.status);
-
-				let result = await createData(error);
-				if (result != undefined) {
-					res.json(result);
-				}
-				res.end();
+				res.send(await createData(error));
 			} else {
-				// JSON? > { message: '', line: ... }
 				res.status(400);
-				res.send(error.message);
+				res.send({ status: 400, message: error.message });
 			}
 		} catch (error) {
 			next(error);
