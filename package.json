@@ -1,7 +1,7 @@
 {
 	"name": "react-sprout",
 	"version": "0.1.0",
-	"description": "",
+	"description": "A better router for React applications",
 	"main": "build/index.js",
 	"source": "source/index.js",
 	"type": "module",
@@ -20,8 +20,12 @@
 		"develop-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --sourcemap --analyze --watch",
 		"prepare": "npm run build && npm run build-express && cp source/index.d.ts build/index.d.ts"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": [
+		"react",
+		"router",
+		"sprout"
+	],
+	"author": "SubHero",
 	"license": "ISC",
 	"devDependencies": {
 		"esbuild": "^0.19.10",
