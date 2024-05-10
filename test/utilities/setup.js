@@ -3,7 +3,7 @@ import PuppeteerPreferences from 'puppeteer-extra-plugin-user-preferences';
 
 import { createServer } from 'vite';
 
-let testing = process.env.NODE_ENV === 'test';
+const testing = process.env.NODE_ENV === 'test';
 
 Puppeteer.use(
 	PuppeteerPreferences({
