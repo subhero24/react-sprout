@@ -15,3 +15,13 @@ export function createPromise(resolveResult, rejectResult) {
 
 	return promise;
 }
+
+export async function isResolved(promise) {
+	let value = {};
+	let result = await Promise.race([promise, value]);
+	if (result === value) {
+		return false;
+	} else {
+		return true;
+	}
+}

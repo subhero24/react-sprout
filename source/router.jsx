@@ -4,7 +4,7 @@ import { createConfig } from './utilities/config.js';
 import { createRender } from './utilities/render.js';
 import { createAction } from './utilities/action.js';
 import { createLoaders } from './utilities/loaders.js';
-import { createPromise } from './utilities/promise.js';
+import { createPromise, isResolved } from './utilities/promise.js';
 import { createElements } from './utilities/elements.js';
 import { createScheduler, resetScheduler } from './utilities/scheduler.js';
 import { createTransition } from './utilities/transition.js';
@@ -398,7 +398,11 @@ export default function Routes(...args) {
 				});
 			} catch (error) {
 				// We use a promise to bail out if needed (ie abort), but this is not an error,
-				// so we catch it and do nothing
+				// so we catch it and do nothing if the page was intentionally aborted
+				let pageIsAborted = await isResolved(navigationPage.promise);
+				if (pageIsAborted === false) {
+					throw error;
+				}
 			}
 		});
 
