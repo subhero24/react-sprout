@@ -48,6 +48,7 @@ function Link(props, ref) {
 					state,
 					title,
 					cache,
+					event,
 					push,
 					replace,
 					sticky,

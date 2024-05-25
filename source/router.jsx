@@ -209,6 +209,7 @@ export default function Routes(...args) {
 				data,
 				target,
 				cache = false,
+				event: eventOriginal,
 				reload = false,
 				sticky = stickyDefault,
 				onAborted,
@@ -260,6 +261,9 @@ export default function Routes(...args) {
 
 			let detail = { request, intent, data };
 			let event = new CustomEvent('navigate', { detail, cancelable: true });
+			if (eventOriginal) {
+				event.originalEvent = eventOriginal;
+			}
 
 			// When using an empty FormData as Request.body will result
 			// in chrome erroring with a TypeError: failed to fetch

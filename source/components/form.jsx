@@ -68,6 +68,7 @@ function Form(props, ref) {
 					title,
 					data,
 					cache,
+					event,
 					reload,
 					method,
 					target,
