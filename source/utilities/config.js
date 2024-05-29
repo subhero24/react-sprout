@@ -35,8 +35,14 @@ export function createConfig(root = [], options) {
 			let [pathname, search] = pathParts(path);
 
 			let score = validScores[path];
-			if (action === true) action = createConfigAction(options, context);
-			if (loader === true) loader = createConfigLoader(options, context);
+
+			let server = {};
+
+			if (action) server.action = createConfigAction(options, context);
+			if (loader) server.loader = createConfigLoader(options, context);
+
+			if (action === true) action = server.action;
+			if (loader === true) loader = server.loader;
 
 			let childBase = resolvePaths(base, path);
 			let childContext;
@@ -63,9 +69,22 @@ export function createConfig(root = [], options) {
 			}
 
 			if (type === Redirect) {
-				return { type, path, pathname, search, score, level, to, status, action };
+				return { type, path, pathname, search, score, level, to, status, action, server };
 			} else {
-				return { type, path, pathname, search, score, level, root, status, loader, action, children: childConfigs };
+				return {
+					type,
+					path,
+					pathname,
+					search,
+					score,
+					level,
+					root,
+					status,
+					loader,
+					action,
+					server,
+					children: childConfigs,
+				};
 			}
 		});
 	}
