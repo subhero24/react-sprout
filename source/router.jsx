@@ -566,6 +566,7 @@ export default function Routes(...args) {
 					}
 
 					for (let page of cacheRef.current) {
+						if (page == undefined) continue;
 						for (let loader of page.loaders) {
 							loader.dirty = true;
 						}
