@@ -118,19 +118,5 @@ export default function Routes(...args) {
 		}
 	});
 
-	router.use(async function (error, req, res, next) {
-		try {
-			if (error instanceof Response) {
-				res.status(error.status);
-				res.send(await createData(error));
-			} else {
-				res.status(400);
-				res.send({ status: 400, message: error.message });
-			}
-		} catch (error) {
-			next(error);
-		}
-	});
-
 	return router;
 }
