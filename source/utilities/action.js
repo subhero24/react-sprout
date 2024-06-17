@@ -52,14 +52,15 @@ export function createAction(render, options) {
 			}
 
 			if (actionResult instanceof Response) {
-				if (actionResult.ok) {
-					return await createData(actionResult);
+				let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
+				if (isRedirect) {
+					return actionResult;
 				} else {
-					let status = actionResult.status;
-					if (status >= 300 && status < 400) {
-						return actionResult;
+					let actionData = await createData(actionResult);
+					if (actionResult.ok) {
+						return actionData;
 					} else {
-						throw actionResult;
+						throw actionData;
 					}
 				}
 			} else {

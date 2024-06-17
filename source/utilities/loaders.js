@@ -42,10 +42,11 @@ export function createLoaders(render, options = {}) {
 					}
 
 					if (loaderResult instanceof Response) {
+						let loaderData = await createData(loaderResult);
 						if (loaderResult.ok) {
-							return await createData(loaderResult);
+							return loaderData;
 						} else {
-							throw loaderResult;
+							throw loaderData;
 						}
 					} else {
 						return loaderResult;

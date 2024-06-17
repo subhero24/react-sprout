@@ -15,8 +15,10 @@ export default function Routes(...args) {
 		[options, elements] = args;
 	}
 
+	let { prefix, customErrors = false } = options;
+
 	let router = Express();
-	let config = createConfig(elements, options);
+	let config = createConfig(elements, { prefix });
 
 	router.use(Express.raw({ type: '*/*' }));
 
@@ -112,6 +114,29 @@ export default function Routes(...args) {
 				}
 			} else {
 				next();
+			}
+		} catch (error) {
+			next(error);
+		}
+	});
+
+	router.use(async function (error, req, res, next) {
+		try {
+			if (error instanceof Response) {
+				res.status(error.status);
+				res.send(await createData(error));
+			} else {
+				if (customErrors) {
+					throw error;
+				} else {
+					res.status(400);
+					let errorIsError = Object.getPrototypeOf(error) === Error.prototype;
+					if (errorIsError) {
+						res.send({ message: error.message });
+					} else {
+						res.send(error);
+					}
+				}
 			}
 		} catch (error) {
 			next(error);
