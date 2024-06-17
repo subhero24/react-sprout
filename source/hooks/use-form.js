@@ -9,8 +9,13 @@ export default function useForm() {
 
 	let Component = useMemo(() => {
 		return forwardRef(function (props, ref) {
-			function onActionError(event, error) {
-				props?.onActionError?.(event, error);
+			function onNavigateStart(event) {
+				props?.onNavigateStart?.(event);
+				addNavigationDetail(event.detail);
+			}
+
+			function onActionError(event, actionError) {
+				props?.onActionError?.(event, actionError);
 				removeNavigationDetail(event.detail);
 			}
 
@@ -19,13 +24,8 @@ export default function useForm() {
 				removeNavigationDetail(event.detail);
 			}
 
-			function onNavigateStart(event) {
-				props?.onNavigateStart?.(event);
-				addNavigationDetail(event.detail);
-			}
-
-			function onNavigateEnd(event) {
-				props?.onNavigateEnd?.(event);
+			function onNavigateEnd(event, actionResult) {
+				props?.onNavigateEnd?.(event, actionResult);
 				removeNavigationDetail(event.detail);
 			}
 

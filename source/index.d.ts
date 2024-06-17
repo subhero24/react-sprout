@@ -49,7 +49,7 @@ type RouterProps = {
 	onAborted?: (event: CustomEvent, reason: any) => void;
 	onCanceled?: (event: CustomEvent) => void;
 	onNavigate?: (event: CustomEvent) => void;
-	onNavigateEnd?: (event: CustomEvent) => void;
+	onNavigateEnd?: (event: CustomEvent, actionResult: any) => void;
 	onNavigateStart?: (event: CustomEvent) => void;
 };
 
@@ -73,8 +73,8 @@ interface NavigationOptions {
 	onAborted?: (event: CustomEvent, reason: any) => void;
 	onCanceled?: (event: CustomEvent) => void;
 	onNavigate?: (event: CustomEvent) => void;
-	onActionError?: (event: CustomEvent, error: Error) => void;
-	onNavigateEnd?: (event: CustomEvent) => void;
+	onActionError?: (event: CustomEvent, actionError: Error) => void;
+	onNavigateEnd?: (event: CustomEvent, actionResult: any) => void;
 	onNavigateStart?: (event: CustomEvent) => void;
 }
 

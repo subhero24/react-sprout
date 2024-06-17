@@ -19,8 +19,13 @@ export default function useNavigate() {
 
 		let { relative = true, ...other } = options ?? {};
 
-		function onActionError(event, error) {
-			options?.onActionError?.(event, error);
+		function onNavigateStart(event) {
+			options?.onNavigateStart?.(event);
+			addNavigationDetail(event.detail);
+		}
+
+		function onActionError(event, actionError) {
+			options?.onActionError?.(event, actionError);
 			removeNavigationDetail(event.detail);
 		}
 
@@ -29,13 +34,8 @@ export default function useNavigate() {
 			removeNavigationDetail(event.detail);
 		}
 
-		function onNavigateStart(event) {
-			options?.onNavigateStart?.(event);
-			addNavigationDetail(event.detail);
-		}
-
-		function onNavigateEnd(event) {
-			options?.onNavigateEnd?.(event);
+		function onNavigateEnd(event, actionResult) {
+			options?.onNavigateEnd?.(event, actionResult);
 			removeNavigationDetail(event.detail);
 		}
 

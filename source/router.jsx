@@ -173,8 +173,8 @@ export default function Routes(...args) {
 					go: (...args) => nativeHistory?.go(...args),
 					back: (...args) => nativeHistory?.back(...args),
 					forward: (...args) => nativeHistory?.forward(...args),
-					pushState: (...args) => nativeHistory?.pushState(...args),
-					replaceState: (...args) => nativeHistory?.replaceState(...args),
+					pushState: (state, title = null, url) => nativeHistory?.pushState(state, title, url),
+					replaceState: (state, title = null, url) => nativeHistory?.replaceState(state, title, url),
 					get length() {
 						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0);
 					},
@@ -396,7 +396,7 @@ export default function Routes(...args) {
 							historyRef.current = undefined;
 						}
 
-						onNavigateEnd?.(event);
+						onNavigateEnd?.(event, navigationPage.action?.resource.result);
 						onRouterNavigateEndCallback(event);
 					});
 				});

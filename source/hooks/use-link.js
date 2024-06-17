@@ -9,14 +9,14 @@ export default function useLink() {
 
 	let Component = useMemo(() => {
 		return forwardRef(function (props, ref) {
-			function onAborted(event, reason) {
-				props?.onAborted?.(event, reason);
-				removeNavigationDetail(event.detail);
-			}
-
 			function onNavigateStart(event) {
 				props?.onNavigateStart?.(event);
 				addNavigationDetail(event.detail);
+			}
+
+			function onAborted(event, reason) {
+				props?.onAborted?.(event, reason);
+				removeNavigationDetail(event.detail);
 			}
 
 			function onNavigateEnd(event) {
