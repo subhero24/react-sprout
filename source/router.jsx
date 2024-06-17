@@ -461,8 +461,16 @@ export default function Routes(...args) {
 		useInsertionEffect(() => {
 			if (native && nativeWindow) {
 				function handlePopstate() {
+					let cachedPage;
+					let currentPage = pageRef.current;
+
 					let request = new Request(nativeWindow.location);
-					let cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url);
+					if (request.url === currentPage.render.request.url) {
+						cachedPage = currentPage;
+					} else {
+						cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url);
+					}
+
 					let nativePage = createPage(request, { cache: cachedPage });
 
 					historyRef.current = undefined;
@@ -475,7 +483,7 @@ export default function Routes(...args) {
 					nativeWindow.removeEventListener('popstate', handlePopstate);
 				};
 			}
-		}, [native]);
+		}, [pageRef, native]);
 
 		// Update resources to prevent spinner flicker on newly rendered page
 		useLayoutEffect(() => {
