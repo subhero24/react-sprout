@@ -464,6 +464,9 @@ export default function Routes(...args) {
 					let cachedPage;
 					let currentPage = pageRef.current;
 
+					// The current page could also have the latest data if popstate happens to be to the same url.
+					// The current page itself will never be in cache as caching could only happen when navigating away.
+					// So first check current page, and only then find cached data in the back/forward cached pages.
 					let request = new Request(nativeWindow.location);
 					if (request.url === currentPage.render.request.url) {
 						cachedPage = currentPage;
