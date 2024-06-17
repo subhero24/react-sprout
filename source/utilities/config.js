@@ -247,12 +247,14 @@ export function createConfigAction(options) {
 	let prefix = options?.prefix ?? '';
 
 	return async function action({ url, data }) {
-		let requestPathname = `${url.pathname}${url.search}`;
-		let response = await fetch(`${prefix}${requestPathname}`, {
+		let requestPathname = `${prefix}${url.pathname}${url.search}`;
+		let response = await fetch(requestPathname, {
 			method: 'POST',
 			body: JSON.stringify(data),
 			headers: { 'Content-Type': 'application/json' },
 		});
+
+		debugger;
 
 		let responseUrl = new URL(response.url);
 		let responsePathname = responseUrl.href.slice(responseUrl.origin.length);
