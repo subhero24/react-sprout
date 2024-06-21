@@ -14,6 +14,7 @@ import { nativeHistory } from './utilities/history.js';
 import { nativeDocument } from './utilities/document.js';
 
 import { routerContext } from './hooks/use-router.js';
+import { errorsContext } from './hooks/use-action-errors.js';
 import { actionsContext } from './hooks/use-actions.js';
 import { loadersContext } from './hooks/use-loaders.js';
 import { historyContext } from './hooks/use-history.js';
@@ -90,6 +91,20 @@ export default function Routes(...args) {
 		let onRouterActionErrorCallback = useImmutableCallback(onRouterActionError);
 		let onRouterNavigateEndCallback = useImmutableCallback(onRouterNavigateEnd);
 		let onRouterNavigateStartCallback = useImmutableCallback(onRouterNavigateStart);
+
+		let [errors, setErrors] = useState([]);
+		let dismissError = useImmutableCallback(error => {
+			setErrors(errors => errors.filter(e => e !== error));
+		});
+
+		let errorConsumerCountRef = useRef(0);
+		let subscribeErrors = useImmutableCallback(() => {
+			errorConsumerCountRef.current++;
+		});
+
+		let unsubscribeErrors = useImmutableCallback(() => {
+			errorConsumerCountRef.current = Math.max(errorConsumerCountRef.current - 1, 0);
+		});
 
 		let [navigations, setNavigations] = useState([]);
 
@@ -413,7 +428,7 @@ export default function Routes(...args) {
 			}
 		});
 
-		let abort = useImmutableCallback(abortedNavigations => {
+		let abortNavigation = useImmutableCallback(abortedNavigations => {
 			let abortedDetails;
 			if (abortedNavigations == undefined) {
 				abortedDetails = navigations.map(navigation => navigation.detail);
@@ -507,7 +522,11 @@ export default function Routes(...args) {
 			}
 		}, [page, native]);
 
-		let routerContextValue = useMemo(() => ({ navigate, abort }), [navigate, abort]);
+		let routerContextValue = useMemo(
+			() => ({ navigate, abortNavigation, dismissError, subscribeErrors, unsubscribeErrors }),
+			[navigate, abortNavigation, dismissError, subscribeErrors, unsubscribeErrors],
+		);
+
 		let optionsContextValue = useMemo(() => {
 			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
 		}, [delayLoadingMs, minimumLoadingMs, defaultFormMethod]);
@@ -519,7 +538,9 @@ export default function Routes(...args) {
 						<actionsContext.Provider value={page.action}>
 							<loadersContext.Provider value={page.loaders}>
 								<historyContext.Provider value={history}>
-									<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+									<errorsContext.Provider value={errors}>
+										<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+									</errorsContext.Provider>
 								</historyContext.Provider>
 							</loadersContext.Provider>
 						</actionsContext.Provider>
@@ -600,7 +621,10 @@ export default function Routes(...args) {
 							callbacks?.onActionError?.(event, error);
 							onRouterActionErrorCallback(event, error);
 
-							// if (error instanceof Response === false || error.status >= 400) {
+							let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
+							if (registerError) {
+								setErrors(errors => [...errors, error]);
+							}
 						}
 						throw error;
 					} finally {

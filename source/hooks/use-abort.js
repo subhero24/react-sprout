@@ -6,5 +6,5 @@ export default function useAbort() {
 		throw new Error(`The useAbort hook can only be used inside a Router component.`);
 	}
 
-	return router.abort;
+	return router.abortNavigation;
 }
