@@ -40,7 +40,7 @@ export function createAction(render, options) {
 				if (data == undefined) {
 					data = await createData(request);
 					if (dataTransform) {
-						data = dataTransform(data);
+						data = await dataTransform(data, request);
 					}
 				}
 

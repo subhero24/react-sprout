@@ -235,7 +235,6 @@ export default function Routes(...args) {
 				url = new URL(`${pathName}?${pathSearch}${pathHash}`);
 			} else if (data) {
 				body = data;
-				data = dataTransform ? dataTransform(data) : data;
 			}
 
 			let type;
@@ -258,6 +257,10 @@ export default function Routes(...args) {
 
 			let cached = reload ? 'reload' : 'default';
 			let request = new Request(url, { method, body, cache: cached });
+
+			if (data && dataTransform) {
+				data = dataTransform(data, request);
+			}
 
 			let detail = { request, intent, data };
 			let event = new CustomEvent('navigate', { detail, cancelable: true });

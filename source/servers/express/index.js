@@ -15,7 +15,7 @@ export default function Routes(...args) {
 		[options, elements] = args;
 	}
 
-	let { prefix, customErrors = false } = options;
+	let { prefix, dataTransform } = options;
 
 	let router = Express();
 	let config = createConfig(elements, { prefix });
@@ -89,9 +89,12 @@ export default function Routes(...args) {
 				if (action) {
 					if (typeof action === 'function') {
 						let url = new URL(request.url);
+						let signal = request.signal;
 
 						let data = await createData(request);
-						let signal = request.signal;
+						if (dataTransform) {
+							data = await dataTransform(data, req);
+						}
 
 						result = await action({ url, splat, params, data, signal, request: req });
 					} else {
@@ -126,17 +129,7 @@ export default function Routes(...args) {
 				res.status(error.status);
 				res.send(await createData(error));
 			} else {
-				if (customErrors) {
-					throw error;
-				} else {
-					res.status(400);
-					let errorIsError = Object.getPrototypeOf(error) === Error.prototype;
-					if (errorIsError) {
-						res.send({ message: error.message });
-					} else {
-						res.send(error);
-					}
-				}
+				throw error;
 			}
 		} catch (error) {
 			next(error);

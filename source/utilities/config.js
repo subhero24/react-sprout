@@ -250,12 +250,11 @@ export function createConfigAction(options) {
 		let requestPathname = `${prefix}${url.pathname}${url.search}`;
 		let response = await fetch(requestPathname, {
 			method: 'POST',
-			body: JSON.stringify(data),
-			headers: { 'Content-Type': 'application/json' },
+			body: data,
+			headers: {
+				Accept: 'application/json',
+			},
 		});
-
-		debugger;
-
 		let responseUrl = new URL(response.url);
 		let responsePathname = responseUrl.href.slice(responseUrl.origin.length);
 		if (responsePathname !== requestPathname) {

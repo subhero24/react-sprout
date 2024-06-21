@@ -42,7 +42,7 @@ type RouterProps = {
 	request?: Request;
 	defaultRequest?: Request;
 	sticky?: boolean;
-	dataTransform?: (data: any) => any;
+	dataTransform?: (data: any, request: Request) => any;
 	delayLoadingMs?: number;
 	minimumLoadingMs?: number;
 	defaultFormMethod?: string;
