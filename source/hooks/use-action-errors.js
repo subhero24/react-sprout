@@ -13,26 +13,19 @@ export default function useActionErrors() {
 
 	let [initialError, setInitialError] = useState(actionError);
 
-	let dismissError = useImmutableCallback(error => {
+	let dismiss = useImmutableCallback(error => {
 		if (error === initialError) {
 			setInitialError();
 		} else {
-			router.dismissError(error);
+			router.dismiss(error);
+
+			if (error == undefined) {
+				setInitialError();
+			}
 		}
 	});
 
-	let dismissErrors = useImmutableCallback(() => {
-		setInitialError();
-		for (let actionError of actionErrors) {
-			router.dismissError(actionError);
-		}
-	});
-
-	useEffect(() => {
-		router.subscribeErrors();
-
-		return router.unsubscribeErrors;
-	});
+	useEffect(() => router.subscribe());
 
 	let errors = useMemo(() => {
 		if (initialError) {
@@ -42,5 +35,5 @@ export default function useActionErrors() {
 		}
 	}, [initialError, actionErrors]);
 
-	return [errors, dismissError, dismissErrors];
+	return [errors, dismiss];
 }

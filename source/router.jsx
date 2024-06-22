@@ -92,18 +92,23 @@ export default function Routes(...args) {
 		let onRouterNavigateEndCallback = useImmutableCallback(onRouterNavigateEnd);
 		let onRouterNavigateStartCallback = useImmutableCallback(onRouterNavigateStart);
 
-		let [errors, setErrors] = useState([]);
-		let dismissError = useImmutableCallback(error => {
-			setErrors(errors => errors.filter(e => e !== error));
-		});
-
 		let errorConsumerCountRef = useRef(0);
-		let subscribeErrors = useImmutableCallback(() => {
-			errorConsumerCountRef.current++;
+		let [errors, setErrors] = useState([]);
+
+		let dismiss = useImmutableCallback(error => {
+			if (error == undefined) {
+				setErrors([]);
+			} else {
+				setErrors(errors => errors.filter(e => e !== error));
+			}
 		});
 
-		let unsubscribeErrors = useImmutableCallback(() => {
-			errorConsumerCountRef.current = Math.max(errorConsumerCountRef.current - 1, 0);
+		let subscribe = useImmutableCallback(() => {
+			errorConsumerCountRef.current++;
+
+			return function () {
+				errorConsumerCountRef.current = Math.max(errorConsumerCountRef.current - 1, 0);
+			};
 		});
 
 		let [navigations, setNavigations] = useState([]);
@@ -428,7 +433,7 @@ export default function Routes(...args) {
 			}
 		});
 
-		let abortNavigation = useImmutableCallback(abortedNavigations => {
+		let abort = useImmutableCallback(abortedNavigations => {
 			let abortedDetails;
 			if (abortedNavigations == undefined) {
 				abortedDetails = navigations.map(navigation => navigation.detail);
@@ -523,8 +528,8 @@ export default function Routes(...args) {
 		}, [page, native]);
 
 		let routerContextValue = useMemo(
-			() => ({ navigate, abortNavigation, dismissError, subscribeErrors, unsubscribeErrors }),
-			[navigate, abortNavigation, dismissError, subscribeErrors, unsubscribeErrors],
+			() => ({ navigate, abort, dismiss, subscribe }),
+			[navigate, abort, dismiss, subscribe],
 		);
 
 		let optionsContextValue = useMemo(() => {
