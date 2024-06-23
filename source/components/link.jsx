@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 
 import useRouter from '../hooks/use-router.js';
 import useResolve from '../hooks/use-resolve.js';
+import useLocation from '../hooks/use-location.js';
 
 function Link(props, ref) {
 	let {
@@ -27,16 +28,18 @@ function Link(props, ref) {
 
 	let router = useRouter();
 	let resolve = useResolve();
+	let location = useLocation();
 	let resolvedPath = resolve(href, { relative });
 
 	function handleClick(event) {
 		onClick?.(event);
 
-		if (event.defaultPrevented == false) {
+		if (event.defaultPrevented === false) {
 			let isLeftClick = event.button === 0;
 			let isSelfTarget = target == undefined || target === '_self';
+			let isSameOrigin = new URL(resolvedPath).origin === location.origin;
 			let hasModifierKey = event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
-			let shouldNavigate = !hasModifierKey && isLeftClick && isSelfTarget;
+			let shouldNavigate = !hasModifierKey && isSameOrigin && isLeftClick && isSelfTarget;
 			if (shouldNavigate && router) {
 				event.preventDefault();
 
