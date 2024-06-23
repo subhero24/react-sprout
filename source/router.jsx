@@ -626,6 +626,8 @@ export default function Routes(...args) {
 							callbacks?.onActionError?.(event, error);
 							onRouterActionErrorCallback(event, error);
 
+							setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
+
 							let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
 							if (registerError) {
 								setErrors(errors => [...errors, error]);
