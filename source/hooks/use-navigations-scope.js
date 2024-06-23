@@ -6,12 +6,12 @@ export default function useNavigationsScope() {
 	let navigations = useNavigations();
 
 	let scopedRef = useRef([]);
-	let scopedMavigations = useMemo(
+	let scopedNavigations = useMemo(
 		() => navigations.filter(navigation => scopedRef.current.includes(navigation.detail)),
 		[scopedRef, navigations],
 	);
 
-	let busy = scopedMavigations.length !== 0;
+	let busy = scopedNavigations.length !== 0;
 
 	let loadingRef = useRef();
 	let loading = useMemo(() => {
@@ -20,12 +20,12 @@ export default function useNavigationsScope() {
 			if (loading) {
 				return true;
 			} else {
-				return scopedMavigations[0].loading;
+				return scopedNavigations[0].loading;
 			}
 		} else {
 			return false;
 		}
-	}, [loadingRef, busy, scopedMavigations]);
+	}, [loadingRef, busy, scopedNavigations]);
 
 	useEffect(() => {
 		loadingRef.current = loading;
@@ -42,5 +42,5 @@ export default function useNavigationsScope() {
 		}
 	});
 
-	return [scopedMavigations, busy, loading, { addNavigationDetail, removeNavigationDetail }];
+	return [scopedNavigations, busy, loading, { addNavigationDetail, removeNavigationDetail }];
 }
