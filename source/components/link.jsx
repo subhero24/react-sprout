@@ -37,7 +37,7 @@ function Link(props, ref) {
 		if (event.defaultPrevented === false) {
 			let isLeftClick = event.button === 0;
 			let isSelfTarget = target == undefined || target === '_self';
-			let isSameOrigin = new URL(resolvedPath).origin === location.origin;
+			let isSameOrigin = new URL(resolvedPath, location).origin === location.origin;
 			let hasModifierKey = event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
 			let shouldNavigate = !hasModifierKey && isSameOrigin && isLeftClick && isSelfTarget;
 			if (shouldNavigate && router) {
