@@ -3,7 +3,7 @@ import { createResource } from './resource.js';
 import { isEquivalentMatch } from './match.js';
 
 export function createLoaders(render, options = {}) {
-	let { loaders, action, scheduler } = options;
+	let { action, cache, scheduler } = options;
 
 	let results = [];
 	let matched = render.root;
@@ -11,11 +11,10 @@ export function createLoaders(render, options = {}) {
 		let match = matched;
 		let loader = match.config.loader;
 		if (loader) {
-			let result = loaders?.find(loader => !loader.dirty && isEquivalentMatch(match, loader.match));
+			let result = cache?.loaders?.find(loader => isEquivalentMatch(match, loader.match));
 			if (result == undefined) {
 				let request = render.request;
 
-				let dirty = false;
 				let signal = request.signal;
 				let promise = createLoaderPromise();
 				let resource = createResource(promise, scheduler);
@@ -23,7 +22,7 @@ export function createLoaders(render, options = {}) {
 
 				signal.addEventListener('abort', () => controller.abort(), { once: true });
 
-				result = { dirty, match, promise, resource, controller };
+				result = { match, promise, resource, controller };
 
 				async function createLoaderPromise() {
 					await action;

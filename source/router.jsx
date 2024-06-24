@@ -182,7 +182,7 @@ export default function Routes(...args) {
 		let externalRequested = useLastValue(externalRequest);
 		if (externalRequested !== externalRequest && mounted) {
 			historyRef.current = undefined;
-			setPage(createPage(externalRequest.clone(), { cache: page }));
+			setPage(createPage(externalRequest.clone(), { cache: page.fresh && page }));
 		}
 
 		let elements = useMemo(() => createElements(page.render.root), [page.render.root]);
@@ -340,7 +340,7 @@ export default function Routes(...args) {
 
 			let callbacks = { onAborted, onActionError, onNavigateEnd };
 			let redirectedPage;
-			let navigationPage = createPage(request, { cache: page, event, callbacks });
+			let navigationPage = createPage(request, { cache: page.fresh && page, event, callbacks });
 
 			// Fetches should set the page after the loaders to finish
 			// Reloads and transitions should set the page almost immediatly
@@ -359,7 +359,7 @@ export default function Routes(...args) {
 					} else {
 						let location = actionResult.headers.get('location');
 						let redirect = new Request(location);
-						redirectedPage = createPage(redirect, { cache: page, event, callbacks });
+						redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
 					}
 				}
 
@@ -555,10 +555,12 @@ export default function Routes(...args) {
 		);
 
 		function createPage(requested, options) {
-			let { cache, event, callbacks } = options ?? {};
+			let { cache: pageCache, event, callbacks } = options ?? {};
 
+			let fresh = true;
 			let render = createRender(config, requested);
-			let result = { render, event, callbacks };
+			let method = render.request.method.toLowerCase();
+			let result = { fresh, render, event, callbacks };
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();
@@ -583,32 +585,24 @@ export default function Routes(...args) {
 			}
 
 			async function createActionPromise() {
-				let method = render.request.method.toLowerCase();
 				if (method === POST) {
 					let mounted = mountedRef.current;
 					if (mounted) {
-						for (let loader of page.loaders) {
-							loader.dirty = true;
-						}
+						page.fresh = false;
 					}
 
 					let nextPage = nextRef.current;
 					if (nextPage) {
-						for (let loader of nextPage.loaders) {
-							loader.dirty = true;
-						}
+						nextPage.fresh = false;
 					}
 
 					for (let page of pagesRef.current) {
-						for (let loader of page.loaders) {
-							loader.dirty = true;
-						}
+						page.fresh = false;
 					}
 
 					for (let page of cacheRef.current) {
-						if (page == undefined) continue;
-						for (let loader of page.loaders) {
-							loader.dirty = true;
+						if (page) {
+							page.fresh = false;
 						}
 					}
 
@@ -643,15 +637,15 @@ export default function Routes(...args) {
 			async function createLoadersPromise() {
 				let action = result.actionPromise;
 
-				let loaders;
-				let useCache = render.request.cache !== 'reload' && render.request.cache !== 'no-store';
-				if (useCache) {
-					loaders = cache?.loaders;
+				let cache;
+				let caching = method !== POST && render.request.cache !== 'reload' && render.request.cache !== 'no-store';
+				if (caching && pageCache) {
+					cache = pageCache;
 				}
 
 				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
-				result.loaders = createLoaders(render, { action, loaders, scheduler });
+				result.loaders = createLoaders(render, { action, cache, scheduler });
 
 				try {
 					let loaderPromises = result.loaders.map(loader => loader.resource.promise);
