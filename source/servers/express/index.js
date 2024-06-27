@@ -15,12 +15,12 @@ export default function Routes(...args) {
 		[options, elements] = args;
 	}
 
-	let { prefix, dataTransform } = options;
+	let { prefix, limit, dataTransform } = options;
 
 	let router = Express();
 	let config = createConfig(elements, { prefix });
 
-	router.use(Express.raw({ type: '*/*' }));
+	router.use(Express.raw({ type: '*/*', limit }));
 
 	router.get('*', async function (req, res, next) {
 		try {
