@@ -28,9 +28,9 @@ export default function Routes(...args) {
 			if (range && range.type === 'route') {
 				let url = req.protocol + '://' + req.get('host') + req.url;
 				let headers = req.headers;
-				let request = new Request(url, { headers });
+				let requested = new Request(url, { headers });
 
-				let match = createMatch(config, request);
+				let match = createMatch(config, requested);
 				if (match) {
 					while (match && match.config.level != range.level) {
 						match = match.children;
@@ -38,13 +38,16 @@ export default function Routes(...args) {
 
 					if (match == undefined) throw new Error('Route range too high');
 
-					let { url, splat, params } = match;
+					let { request, splat, params } = match;
+
+					let url = request.url;
+					let signal = requested.signal;
 
 					let result;
 					let loader = match.config.loader;
 					if (loader) {
 						if (typeof loader === 'function') {
-							result = await loader({ url, splat, params, signal: request.signal, request: req });
+							result = await loader({ url, splat, params, signal, request: req });
 						} else {
 							result = loader;
 						}
@@ -73,9 +76,9 @@ export default function Routes(...args) {
 			let body = req.body;
 			let method = req.method;
 			let headers = req.headers;
-			let request = new Request(url, { body, method, headers });
+			let requested = new Request(url, { body, method, headers });
 
-			let match = createMatch(config, request);
+			let match = createMatch(config, requested);
 			if (match) {
 				let action = match.config.action;
 				while (match.children) {
@@ -83,15 +86,15 @@ export default function Routes(...args) {
 					action = match.config.action ?? action;
 				}
 
-				let { splat, params } = match;
+				let { request, splat, params } = match;
 
 				let result;
 				if (action) {
 					if (typeof action === 'function') {
-						let url = new URL(request.url);
-						let signal = request.signal;
+						let url = request.url;
+						let signal = requested.signal;
 
-						let data = await createData(request);
+						let data = await createData(requested);
 						if (dataTransform) {
 							data = await dataTransform(data, req);
 						}
