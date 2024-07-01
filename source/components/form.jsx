@@ -4,7 +4,9 @@ import useRouter from '../hooks/use-router.js';
 import useOptions from '../hooks/use-options.js';
 import useResolve from '../hooks/use-resolve.js';
 
-import { GET } from '../constants.js';
+import { development } from '../utilities/environment.js';
+
+import { GET, MULTIPART, POST } from '../constants.js';
 import { URLENCODED } from '../constants.js';
 
 function Form(props, ref) {
@@ -56,7 +58,24 @@ function Form(props, ref) {
 				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
 
 				let data = new FormData(form, submitter);
-				if (method.toLowerCase() === GET || enctype.toLowerCase() === URLENCODED) {
+				let formMethodIsGet = method.toLowerCase() === GET;
+				let formEncodingIsUrl = enctype.toLowerCase() === URLENCODED;
+				if (formEncodingIsUrl || formMethodIsGet) {
+					if (development) {
+						let dataHasFile = data.entries().find(entry => entry[1] instanceof File);
+						if (dataHasFile) {
+							if (formEncodingIsUrl) {
+								console.warn(
+									`A form with a file input is submitted with enctype "${enctype}". You probably want an enctype of "${MULTIPART}" to submit files.`,
+								);
+							} else if (formMethodIsGet) {
+								console.warn(
+									`A form with a file input is submitted with method "${method}". You probably want a method of "${POST}" to submit files.`,
+								);
+							}
+						}
+					}
+
 					data = new URLSearchParams(data);
 				}
 
