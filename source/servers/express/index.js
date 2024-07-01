@@ -40,7 +40,7 @@ export default function Routes(...args) {
 
 					let { request, splat, params } = match;
 
-					let url = request.url;
+					let url = new URL(request.url);
 					let signal = requested.signal;
 
 					let result;
@@ -91,7 +91,7 @@ export default function Routes(...args) {
 				let result;
 				if (action) {
 					if (typeof action === 'function') {
-						let url = request.url;
+						let url = new URL(request.url);
 						let signal = requested.signal;
 
 						let data = await createData(requested);
