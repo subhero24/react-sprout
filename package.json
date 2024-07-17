@@ -1,6 +1,6 @@
 {
 	"name": "react-sprout",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"description": "A better router for React applications",
 	"main": "build/index.js",
 	"source": "source/index.js",
