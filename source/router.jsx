@@ -350,17 +350,9 @@ export default function Routes(...args) {
 
 				let actionResult = await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
 				if (actionResult instanceof Response && actionResult.status === 303) {
-					if (intent === FETCH) {
-						if (process.env.NODE_ENV) {
-							console.warn(
-								'Redirect response from the action ignored as the target url was the same as the current page.',
-							);
-						}
-					} else {
-						let location = actionResult.headers.get('location');
-						let redirect = new Request(location);
-						redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
-					}
+					let location = actionResult.headers.get('location');
+					let redirect = new Request(location);
+					redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
 				}
 
 				// Setting a function as state allows late binding to the action result
