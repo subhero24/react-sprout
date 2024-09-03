@@ -124,7 +124,7 @@ export function useSplat(): Splat;
 export function useParams(): Params;
 export function useHistory(): History;
 export function useLocation(): URL;
-export function useActionError(): any;
+export function useActionErrors(): any;
 export function useActionResult(): any;
 export function useLoaderResult(): any;
 
