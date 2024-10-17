@@ -44,7 +44,7 @@ export function createAction(render, options) {
 					}
 				}
 
-				let server = match.config.server.action.bind({ url, splat, params, data, signal });
+				let server = match.config.server.action?.bind(undefined, { url, splat, params, data, signal });
 
 				actionResult = await action({ url, splat, params, data, signal, server });
 			} else {

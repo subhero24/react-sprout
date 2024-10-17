@@ -33,7 +33,7 @@ export function createLoaders(render, options = {}) {
 						let { splat, params } = match;
 
 						let url = new URL(request.url);
-						let server = match.config.server.loader?.bind({ url, splat, params, signal });
+						let server = match.config.server.loader?.bind(undefined, { url, splat, params, signal });
 
 						loaderResult = await loader({ url, splat, params, signal, server });
 					} else {
