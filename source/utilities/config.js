@@ -247,17 +247,23 @@ export function createConfigAction(options) {
 	let prefix = options?.prefix ?? '';
 
 	return async function action({ url, data }) {
-		let requestPathname = `${prefix}${url.pathname}${url.search}`;
-		let response = await fetch(requestPathname, {
-			method: 'POST',
-			body: data,
-			headers: {
-				Accept: 'application/json',
-			},
-		});
+		let body = data;
+		let headers = new Headers({ Accept: 'application/json' });
+		let pathname = `${prefix}${url.pathname}${url.search}`;
+
+		// Who would ever want to send "[object Object]" to the server??
+		if (typeof data === 'object' && data !== null) {
+			let isValidFetchBodyInstance = data instanceof DataView || data instanceof Blob || data instanceof File || data instanceof URLSearchParams || data instanceof FormData || data instanceof ReadableStream || data instanceof ArrayBuffer || ArrayBuffer.isView(data);
+			if (isValidFetchBodyInstance === false) {
+				body = JSON.stringify(data);
+				headers.set('Content-Type', 'application/json');
+			}
+		}
+
+		let response = await fetch(pathname, { method: 'POST', body, headers });
 		let responseUrl = new URL(response.url);
 		let responsePathname = responseUrl.href.slice(responseUrl.origin.length);
-		if (responsePathname !== requestPathname) {
+		if (responsePathname !== pathname) {
 			return Response.redirect(responseUrl, 303);
 		}
 
