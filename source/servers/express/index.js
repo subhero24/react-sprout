@@ -47,7 +47,7 @@ export default function Routes(...args) {
 					let loader = match.config.loader;
 					if (loader) {
 						if (typeof loader === 'function') {
-							result = await loader({ url, splat, params, signal, request: req });
+							result = await loader({ url, splat, params, signal, request: req, response: res });
 						} else {
 							result = loader;
 						}
@@ -99,7 +99,7 @@ export default function Routes(...args) {
 							data = await dataTransform(data, req);
 						}
 
-						result = await action({ url, splat, params, data, signal, request: req });
+						result = await action({ url, splat, params, data, signal, request: req, response: res });
 					} else {
 						result = action;
 					}
