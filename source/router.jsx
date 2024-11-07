@@ -161,9 +161,7 @@ export default function Routes(...args) {
 		let [page, setPage] = useStateWithCallback(() => {
 			let request = initialRequest ?? nativeRequest;
 			if (request == undefined) {
-				throw new Error(
-					`There is no "request" available for the router. Please provide a "request" or "defaultRequest" property to your <Router> element, or alternatively wrap your <Router> within a <Request> element.`,
-				);
+				throw new Error(`There is no "request" available for the router. Please provide a "request" or "defaultRequest" property to your <Router> element, or alternatively wrap your <Router> within a <Request> element.`);
 			}
 
 			let page = suspensePageByRequestCache.get(request);
@@ -294,9 +292,7 @@ export default function Routes(...args) {
 			// (new Request('url', { body: new FormData(), method: 'POST' })).formData()
 			// This should work, and works fine in firefox
 			if (process.env.NODE_ENV && body instanceof FormData && [...body].length === 0) {
-				console.warn(
-					`FormData has no entries. This will result in a "failed to fetch" error in Chrome. Make sure your form has at least 1 named input field.`,
-				);
+				console.warn(`FormData has no entries. This will result in a "failed to fetch" error in Chrome. Make sure your form has at least 1 named input field.`);
 			}
 
 			onNavigate?.(event);
@@ -519,10 +515,7 @@ export default function Routes(...args) {
 			}
 		}, [page, native]);
 
-		let routerContextValue = useMemo(
-			() => ({ navigate, abort, dismiss, subscribe }),
-			[navigate, abort, dismiss, subscribe],
-		);
+		let routerContextValue = useMemo(() => ({ navigate, abort, dismiss, subscribe }), [navigate, abort, dismiss, subscribe]);
 
 		let optionsContextValue = useMemo(() => {
 			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
@@ -576,53 +569,54 @@ export default function Routes(...args) {
 				nextRef.current = result;
 			}
 
-			async function createActionPromise() {
-				if (method === POST) {
-					let mounted = mountedRef.current;
-					if (mounted) {
+			function createActionPromise() {
+				if (method !== POST) return;
+
+				let mounted = mountedRef.current;
+				if (mounted) {
+					page.fresh = false;
+				}
+
+				let nextPage = nextRef.current;
+				if (nextPage) {
+					nextPage.fresh = false;
+				}
+
+				for (let page of pagesRef.current) {
+					page.fresh = false;
+				}
+
+				for (let page of cacheRef.current) {
+					if (page) {
 						page.fresh = false;
 					}
+				}
 
-					let nextPage = nextRef.current;
-					if (nextPage) {
-						nextPage.fresh = false;
-					}
+				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
-					for (let page of pagesRef.current) {
-						page.fresh = false;
-					}
+				result.action = createAction(render, { event, scheduler, dataTransform });
 
-					for (let page of cacheRef.current) {
-						if (page) {
-							page.fresh = false;
+				return Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise])
+					.catch(handleError)
+					.finally(handleFinally);
+
+				function handleError(error) {
+					if (event) {
+						callbacks?.onActionError?.(event, error);
+						onRouterActionErrorCallback(event, error);
+
+						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
+
+						let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
+						if (registerError) {
+							setErrors(errors => [...errors, error]);
 						}
 					}
+					throw error;
+				}
 
-					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
-
-					result.action = createAction(render, { event, scheduler, dataTransform });
-
-					try {
-						return await Promise.race([
-							result.promise,
-							event ? result.action?.resource.promise : result.action?.promise,
-						]);
-					} catch (error) {
-						if (event) {
-							callbacks?.onActionError?.(event, error);
-							onRouterActionErrorCallback(event, error);
-
-							setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
-
-							let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
-							if (registerError) {
-								setErrors(errors => [...errors, error]);
-							}
-						}
-						throw error;
-					} finally {
-						result.timestamp = Date.now();
-					}
+				function handleFinally() {
+					result.timestamp = Date.now();
 				}
 			}
 

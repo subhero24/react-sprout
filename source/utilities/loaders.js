@@ -5,59 +5,78 @@ import { isEquivalentMatch } from './match.js';
 export function createLoaders(render, options = {}) {
 	let { action, cache, scheduler } = options;
 
-	let results = [];
+	let loaders = [];
 	let matched = render.root;
+
 	while (matched) {
 		let match = matched;
-		let loader = match.config.loader;
-		if (loader) {
-			let result = cache?.loaders?.find(loader => isEquivalentMatch(match, loader.match));
-			if (result == undefined) {
+		let configLoader = match.config.loader;
+		if (configLoader) {
+			let loader = cache?.loaders?.find(loader => isEquivalentMatch(match, loader.match));
+			if (loader == undefined) {
 				let request = render.request;
 
 				let signal = request.signal;
-				let promise = createLoaderPromise();
-				let resource = createResource(promise, scheduler);
+				let result = createLoaderResult();
+				let promise;
+				let resource = createResource(result, scheduler);
 				let controller = new AbortController();
 
 				signal.addEventListener('abort', () => controller.abort(), { once: true });
 
-				result = { match, promise, resource, controller };
+				loader = { match, promise, resource, controller };
 
-				async function createLoaderPromise() {
-					await action;
-
-					let loaderResult;
-					let loaderType = typeof loader;
-					if (loaderType === 'function') {
-						let { splat, params } = match;
-
-						let url = new URL(request.url);
-						let server = match.config.server.loader?.bind(undefined, { url, splat, params, signal });
-
-						loaderResult = await loader({ url, splat, params, signal, server });
+				function createLoaderResult() {
+					let actionIsPromise = action instanceof Promise;
+					if (actionIsPromise) {
+						return action.then(createLoaderResult);
 					} else {
-						loaderResult = await loader;
+						return createLoaderResult();
 					}
 
-					if (loaderResult instanceof Response) {
-						let loaderData = await createData(loaderResult);
-						if (loaderResult.ok) {
-							return loaderData;
+					function createLoaderResult() {
+						let loaderResult;
+						let loaderType = typeof configLoader;
+						if (loaderType === 'function') {
+							let { splat, params } = match;
+
+							let url = new URL(request.url);
+							let server = match.config.server.loader?.bind(undefined, { url, splat, params, signal });
+
+							loaderResult = configLoader({ url, splat, params, signal, server });
 						} else {
-							throw loaderData;
+							loaderResult = configLoader;
 						}
-					} else {
+
+						let loaderResultIsPromise = loaderResult instanceof Promise;
+						let loaderResultIsResponse = loaderResult instanceof Response;
+						if (loaderResultIsResponse || loaderResultIsPromise) {
+							loaderResult = createLoaderResult();
+
+							async function createLoaderResult() {
+								if (loaderResultIsResponse) {
+									let loaderData = await createData(loaderResult);
+									if (loaderResult.ok) {
+										return loaderData;
+									} else {
+										throw loaderData;
+									}
+								} else {
+									return loaderResult;
+								}
+							}
+						}
+
 						return loaderResult;
 					}
 				}
 			}
 
-			results.push(result);
+			loaders.push(loader);
 		}
 
 		matched = match.children;
 	}
 
-	return results;
+	return loaders;
 }

@@ -21,50 +21,61 @@ export function createAction(render, options) {
 		let request = render.request;
 
 		let signal = request.signal;
-		let promise = createActionPromise();
-		let resource = createResource(promise, scheduler);
+		let result = createActionResult();
+		let resource = createResource(result, scheduler);
 		let controller = new AbortController();
 
 		signal.addEventListener('abort', () => controller.abort(), { once: true });
 
-		return { match, promise, resource, controller };
+		return { match, resource, controller };
 
-		async function createActionPromise() {
+		function createActionResult() {
 			let actionResult;
 			let actionType = typeof action;
 			if (actionType === 'function') {
 				let { splat, params } = match;
 
-				let url = new URL(request.url);
-				let data = event?.detail.data;
-				if (data == undefined) {
-					data = await createData(request);
-					if (dataTransform) {
-						data = await dataTransform(data, request);
-					}
+				let dataIsAvailable = event;
+				if (dataIsAvailable) {
+					actionResult = createActionResult(event.detail.data);
+				} else {
+					actionResult = createData(request)
+						.then(data => (dataTransform ? dataTransform(data, request) : data))
+						.then(createActionResult);
 				}
 
-				let server = match.config.server.action?.bind(undefined, { url, splat, params, data, signal });
+				function createActionResult(data) {
+					let url = new URL(request.url);
+					let server = match.config.server.action?.bind(undefined, { url, splat, params, data, signal });
 
-				actionResult = await action({ url, splat, params, data, signal, server });
+					return action({ url, splat, params, data, signal, server });
+				}
 			} else {
-				actionResult = await action;
+				actionResult = action;
 			}
 
-			if (actionResult instanceof Response) {
-				let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
-				if (isRedirect) {
-					return actionResult;
-				} else {
-					let actionData = await createData(actionResult);
-					if (actionResult.ok) {
-						return actionData;
+			let actionResultIsPromise = actionResult instanceof Promise;
+			let actionResultIsResponse = actionResult instanceof Response;
+			if (actionResultIsResponse || actionResultIsPromise) {
+				actionResult = createActionResult();
+
+				async function createActionResult() {
+					if (actionResultIsResponse) {
+						let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
+						if (isRedirect) {
+							return actionResult;
+						} else {
+							let actionData = await createData(actionResult);
+							if (actionResult.ok) {
+								return actionData;
+							} else {
+								throw actionData;
+							}
+						}
 					} else {
-						throw actionData;
+						return actionResult;
 					}
 				}
-			} else {
-				return actionResult;
 			}
 		}
 	}

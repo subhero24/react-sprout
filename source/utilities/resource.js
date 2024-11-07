@@ -1,6 +1,9 @@
 import { awaitScheduler } from './scheduler.js';
 
-export function createResource(promise, scheduler) {
+export function createResource(value, scheduler) {
+	// We use a seperate promise for suspense, as that always needs resolving
+	// but we would like to keep the original erroring promise around for data flow
+
 	let resource = {
 		status: 'busy',
 		result: undefined,
@@ -9,32 +12,40 @@ export function createResource(promise, scheduler) {
 		scheduler,
 	};
 
-	let resolve = function (result) {
+	let isPromise = value instanceof Promise;
+	if (isPromise === false) {
+		let promise = Promise.resolve(value);
+
 		resource.status = 'done';
-		resource.result = result;
-		return result;
-	};
+		resource.result = value;
+		resource.promise = promise;
+		resource.suspense = promise;
+	} else {
+		resource.promise = value.then(
+			result =>
+				awaitScheduler(resource.scheduler).then(() => {
+					return result;
+				}),
+			error =>
+				awaitScheduler(resource.scheduler).then(() => {
+					throw error;
+				}),
+		);
 
-	let reject = function (error) {
-		resource.status = 'error';
-		resource.result = error;
-		return error;
-	};
+		let resolve = function (result) {
+			resource.status = 'done';
+			resource.result = result;
+			return result;
+		};
 
-	resource.promise = promise.then(
-		result =>
-			awaitScheduler(resource.scheduler).then(() => {
-				return result;
-			}),
-		error =>
-			awaitScheduler(resource.scheduler).then(() => {
-				throw error;
-			}),
-	);
+		let reject = function (error) {
+			resource.status = 'error';
+			resource.result = error;
+			return error;
+		};
 
-	// We use a seperate promise for suspense, as that always needs resolving
-	// but we would like to keep the original erroring promise around for data flow
-	resource.suspense = resource.promise.then(resolve, reject);
+		resource.suspense = resource.promise.then(resolve, reject);
+	}
 
 	return resource;
 }
