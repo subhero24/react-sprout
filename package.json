@@ -14,11 +14,13 @@
 		"lint": "eslint source/**/*.*",
 		"test:develop": "node --watch --test-concurrency 1 --test ./test/tests/**/test.spec.js",
 		"test": "node --test-concurrency 1 --test ./test/tests/**/**/test.spec.js",
-		"build": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --minify --analyze",
+		"build": "npm run build-main && npm run build-express",
+		"build-main": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --minify --analyze",
 		"build-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --minify --analyze",
-		"develop": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --sourcemap --analyze --watch",
-		"develop-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --sourcemap --analyze --watch",
-		"prepare": "npm run build && npm run build-express && cp source/index.d.ts build/index.d.ts"
+		"develop": "trap \"kill -INT %1\" SIGINT; npm run develop-express & npm run develop-main",
+		"develop-main": "esbuild --bundle source/index.js --format=esm --outfile=build/index.js --external:react --external:react-dom --jsx=automatic --sourcemap --analyze --watch=forever",
+		"develop-express": "esbuild source/servers/express/index.js --bundle --format=esm --platform=node --outfile=build/express.js --external:express --external:react --sourcemap --analyze --watch=forever",
+		"prepare": "npm run build && cp source/index.d.ts build/index.d.ts"
 	},
 	"keywords": [
 		"react",
