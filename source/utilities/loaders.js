@@ -18,13 +18,12 @@ export function createLoaders(render, options = {}) {
 
 				let signal = request.signal;
 				let result = createLoaderResult();
-				let promise;
 				let resource = createResource(result, scheduler);
 				let controller = new AbortController();
 
 				signal.addEventListener('abort', () => controller.abort(), { once: true });
 
-				loader = { match, promise, resource, controller };
+				loader = { match, resource, controller };
 
 				function createLoaderResult() {
 					let actionIsPromise = action instanceof Promise;
@@ -48,21 +47,16 @@ export function createLoaders(render, options = {}) {
 							loaderResult = configLoader;
 						}
 
-						let loaderResultIsPromise = loaderResult instanceof Promise;
 						let loaderResultIsResponse = loaderResult instanceof Response;
-						if (loaderResultIsResponse || loaderResultIsPromise) {
-							loaderResult = createLoaderResult();
+						if (loaderResultIsResponse) {
+							return createLoaderResult();
 
 							async function createLoaderResult() {
-								if (loaderResultIsResponse) {
-									let loaderData = await createData(loaderResult);
-									if (loaderResult.ok) {
-										return loaderData;
-									} else {
-										throw loaderData;
-									}
+								let loaderData = await createData(loaderResult);
+								if (loaderResult.ok) {
+									return loaderData;
 								} else {
-									return loaderResult;
+									throw loaderData;
 								}
 							}
 						}

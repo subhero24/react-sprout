@@ -54,29 +54,26 @@ export function createAction(render, options) {
 				actionResult = action;
 			}
 
-			let actionResultIsPromise = actionResult instanceof Promise;
 			let actionResultIsResponse = actionResult instanceof Response;
-			if (actionResultIsResponse || actionResultIsPromise) {
-				actionResult = createActionResult();
+			if (actionResultIsResponse) {
+				return createActionResult();
 
 				async function createActionResult() {
-					if (actionResultIsResponse) {
-						let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
-						if (isRedirect) {
-							return actionResult;
-						} else {
-							let actionData = await createData(actionResult);
-							if (actionResult.ok) {
-								return actionData;
-							} else {
-								throw actionData;
-							}
-						}
-					} else {
+					let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
+					if (isRedirect) {
 						return actionResult;
+					} else {
+						let actionData = await createData(actionResult);
+						if (actionResult.ok) {
+							return actionData;
+						} else {
+							throw actionData;
+						}
 					}
 				}
 			}
+
+			return actionResult;
 		}
 	}
 }
