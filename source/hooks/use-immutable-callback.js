@@ -11,6 +11,6 @@ export default function useImmutableCallback(callback, dependencies = []) {
 		function (...args) {
 			return callbackRef.current?.(...args);
 		},
-		[callbackRef, ...dependencies],
+		[callbackRef, ...dependencies], // eslint-disable-line react-hooks/exhaustive-deps
 	);
 }

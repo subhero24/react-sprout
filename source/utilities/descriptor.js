@@ -139,17 +139,7 @@ export function descriptorScore(descriptor) {
 	let presentSearchParams = searchParams.filter(isPresentSearchParam);
 	let assignedSearchParams = searchParams.filter(isAssignedSearchParam);
 
-	return [
-		hasLeadingSlash,
-		segments.length,
-		statics.length,
-		params.length,
-		splat,
-		hasTrailingSlash,
-		assignedSearchParams.length,
-		presentSearchParams.length,
-		searchParams.length,
-	];
+	return [hasLeadingSlash, segments.length, statics.length, params.length, splat, hasTrailingSlash, assignedSearchParams.length, presentSearchParams.length, searchParams.length];
 }
 
 export function descriptorStructure(descriptor) {
@@ -174,9 +164,5 @@ export function equivalentDescriptors(descriptor1, descriptor2) {
 	let structure1 = typeof descriptor1 === 'string' ? descriptorStructure(descriptor1) : descriptor1;
 	let structure2 = typeof descriptor2 === 'string' ? descriptorStructure(descriptor2) : descriptor2;
 
-	return (
-		isEquivalentObject(structure1.segments, structure2.segments) &&
-		isEquivalentObject(structure1.presentSearchParams, structure2.presentSearchParams) &&
-		isEquivalentObject(structure1.assignedSearchParams, structure2.assignedSearchParams)
-	);
+	return isEquivalentObject(structure1.segments, structure2.segments) && isEquivalentObject(structure1.presentSearchParams, structure2.presentSearchParams) && isEquivalentObject(structure1.assignedSearchParams, structure2.assignedSearchParams);
 }

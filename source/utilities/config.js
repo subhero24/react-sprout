@@ -58,11 +58,7 @@ export function createConfig(root = [], options) {
 				let structure = descriptorStructure(descriptorPath);
 				let duplicate = duplicates.find(duplicate => equivalentDescriptors(duplicate.structure, structure));
 				if (duplicate && process.env.NODE_ENV) {
-					configConsole.warn(
-						`There are two routes which will match the same url. The second route will never render.`,
-						rootRoute,
-						[duplicate.route, route],
-					);
+					configConsole.warn(`There are two routes which will match the same url. The second route will never render.`, rootRoute, [duplicate.route, route]);
 				} else {
 					duplicates.push({ route, structure });
 				}
@@ -166,33 +162,25 @@ export class RouterConfigError extends Error {}
 
 function assertRouteIsNotString(route) {
 	if (typeof route === 'string') {
-		throw new RouterConfigError(
-			`There is a text node "${route}" in the routes configuration. Routes need to be specified by objects or react elements. Please remove this text node to fix this.`,
-		);
+		throw new RouterConfigError(`There is a text node "${route}" in the routes configuration. Routes need to be specified by objects or react elements. Please remove this text node to fix this.`);
 	}
 }
 
 function assertRouteRedirectHasNoLoader(element) {
 	if (element.type === Redirect && element.loader) {
-		throw new RouterConfigError(
-			`There is a Redirect route with a loader. Redirect routes should not load data as they will not render. Please remove the loader to fix this.`,
-		);
+		throw new RouterConfigError(`There is a Redirect route with a loader. Redirect routes should not load data as they will not render. Please remove the loader to fix this.`);
 	}
 }
 
 function assertRouteRedirictHasNoChildren(element) {
 	if (element.type === Redirect && element.children) {
-		throw new RouterConfigError(
-			`There is a Redirect route with child routes. Redirect routes should not have child routes. Please remove the child routes to fix this.`,
-		);
+		throw new RouterConfigError(`There is a Redirect route with child routes. Redirect routes should not have child routes. Please remove the child routes to fix this.`);
 	}
 }
 
 function assertRouteWithoutChildrenIsNotRoot(element) {
 	if (element.root && element.children) {
-		throw new RouterConfigError(
-			`There is a root route without child routes. Please remove the root property to fix this.`,
-		);
+		throw new RouterConfigError(`There is a root route without child routes. Please remove the root property to fix this.`);
 	}
 }
 
@@ -200,9 +188,7 @@ function assertRoutePathHasNoHash(element) {
 	if (element.path != undefined) {
 		let hash = pathParts(element.path)[2];
 		if (hash) {
-			throw new RouterConfigError(
-				`There is a route with a hash "#${hash}". Hashes should not be used in your route paths. Please remove the hash "#${hash}" to fix this.`,
-			);
+			throw new RouterConfigError(`There is a route with a hash "#${hash}". Hashes should not be used in your route paths. Please remove the hash "#${hash}" to fix this.`);
 		}
 	}
 }

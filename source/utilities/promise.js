@@ -96,7 +96,7 @@ export async function isResolved(promise) {
 		} else {
 			return true;
 		}
-	} catch (error) {
+	} catch {
 		return true;
 	}
 }

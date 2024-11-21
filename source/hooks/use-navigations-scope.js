@@ -6,10 +6,7 @@ export default function useNavigationsScope() {
 	let navigations = useNavigations();
 
 	let scopedRef = useRef([]);
-	let scopedNavigations = useMemo(
-		() => navigations.filter(navigation => scopedRef.current.includes(navigation.detail)),
-		[scopedRef, navigations],
-	);
+	let scopedNavigations = useMemo(() => navigations.filter(navigation => scopedRef.current.includes(navigation.detail)), [scopedRef, navigations]);
 
 	let busy = scopedNavigations.length !== 0;
 

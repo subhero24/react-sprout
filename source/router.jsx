@@ -37,8 +37,6 @@ import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import sleep from '../test/utilities/sleep.js';
 
-let pageId = 1;
-
 export default function Routes(...args) {
 	let options;
 	let elements;
@@ -228,9 +226,9 @@ export default function Routes(...args) {
 
 			let type;
 			if (fix && state == undefined) {
-				type = push != undefined ? (push ? PUSH : REPLACE) : replace ?? true ? REPLACE : PUSH;
+				type = push != undefined ? (push ? PUSH : REPLACE) : (replace ?? true) ? REPLACE : PUSH;
 			} else {
-				type = replace != undefined ? (replace ? REPLACE : PUSH) : push ?? true ? PUSH : REPLACE;
+				type = replace != undefined ? (replace ? REPLACE : PUSH) : (push ?? true) ? PUSH : REPLACE;
 			}
 
 			let intent;
@@ -389,9 +387,7 @@ export default function Routes(...args) {
 			} catch (error) {
 				// We use a promise to bail out if needed (ie abort), but this is not an error,
 				// so we catch it and do nothing if the page was intentionally aborted
-
 				let pageIsAborted = await isResolved(navigationPage.promise);
-
 				if (pageIsAborted === false) {
 					throw error;
 				}
@@ -523,7 +519,7 @@ export default function Routes(...args) {
 			let render = createRender(config, requested);
 			let method = render.request.method.toLowerCase();
 
-			let result = { id: pageId++, fresh, render, event, callbacks };
+			let result = { fresh, render, event, callbacks };
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();

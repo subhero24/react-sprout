@@ -19,6 +19,11 @@ export default {
 			...globals.browser,
 		},
 	},
+	settings: {
+		react: {
+			version: 'detect',
+		},
+	},
 	rules: {
 		'constructor-super': 'error',
 		'for-direction': 'error',

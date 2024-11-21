@@ -25,9 +25,7 @@ export default function Location(props) {
 
 				return new URL(resolve(url), location.origin);
 			} else {
-				throw new Error(
-					`Invalid location url "${url}". There is no context available to support paths without an origin. Please specify the full URL.`,
-				);
+				throw new Error(`Invalid location url "${url}". There is no context available to support paths without an origin. Please specify the full URL.`);
 			}
 		}
 	}, [url, location, resolve]);

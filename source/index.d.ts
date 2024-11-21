@@ -107,12 +107,7 @@ type Navigate = (options: NavigateOptions) => void;
 type NavigateTo = (to: string, options: NavigateToOptions) => void;
 type Navigation = { loading: boolean; detail: object };
 
-export function useNavigate(): [
-	navigate: Navigate | NavigateTo,
-	busy: boolean,
-	loading: boolean,
-	navigations: Array<Navigation>,
-];
+export function useNavigate(): [navigate: Navigate | NavigateTo, busy: boolean, loading: boolean, navigations: Array<Navigation>];
 
 export function useNavigations(): Array<Navigation>;
 
