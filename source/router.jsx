@@ -37,6 +37,8 @@ import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import sleep from '../test/utilities/sleep.js';
 
+let historyBaseLength = nativeHistory?.length ?? 0;
+
 export default function Routes(...args) {
 	let options;
 	let elements;
@@ -53,7 +55,7 @@ export default function Routes(...args) {
 	let suspensePageByRequestCache = new Map();
 
 	return function Router(props) {
-		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault = false, dataTransform, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
+		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault = false, dataTransform, relativeHistory = false, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
@@ -180,7 +182,7 @@ export default function Routes(...args) {
 					pushState: (state, title = null, url) => nativeHistory?.pushState(state, title, url),
 					replaceState: (state, title = null, url) => nativeHistory?.replaceState(state, title, url),
 					get length() {
-						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0);
+						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0) - (relativeHistory ? historyBaseLength - 1 : 0);
 					},
 					get state() {
 						return historyRef.current ? historyRef.current.state : nativeHistory.state;
@@ -193,7 +195,7 @@ export default function Routes(...args) {
 					},
 				};
 			}
-		}, [native, historyRef]);
+		}, [native, historyRef, relativeHistory]);
 
 		let navigate = useImmutableCallback(async (arg1, arg2) => {
 			// navigate(options)
