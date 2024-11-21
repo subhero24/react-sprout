@@ -1,5 +1,6 @@
 import { createData } from './data.js';
-import { createResource } from './resource.js';
+import { createAsyncResource, createSyncResource } from './resource.js';
+import { createSyncAsync } from './promise.js';
 
 export function createAction(render, options) {
 	let { event, scheduler, dataTransform } = options ?? {};
@@ -21,58 +22,60 @@ export function createAction(render, options) {
 		let request = render.request;
 
 		let signal = request.signal;
-		let result = createActionResult();
-		let resource = createResource(result, scheduler);
+		let result = createSyncAsync().then(createActionData).then(createActionResult).then(handleActionResult);
+		let resource;
+
+		let resultValue = result.value;
+		if (resultValue instanceof Promise) {
+			resource = createAsyncResource(resultValue, scheduler);
+		} else {
+			resource = createSyncResource(resultValue, result.state);
+		}
+
 		let controller = new AbortController();
 
 		signal.addEventListener('abort', () => controller.abort(), { once: true });
 
 		return { match, resource, controller };
 
-		function createActionResult() {
-			let actionResult;
+		function createActionData() {
+			if (event) {
+				return event.detail.data;
+			} else {
+				return createData(request).then(data => (dataTransform ? dataTransform(data, request) : data));
+			}
+		}
+
+		function createActionResult(data) {
 			let actionType = typeof action;
 			if (actionType === 'function') {
 				let { splat, params } = match;
 
-				let dataIsAvailable = event;
-				if (dataIsAvailable) {
-					actionResult = createActionResult(event.detail.data);
-				} else {
-					actionResult = createData(request)
-						.then(data => (dataTransform ? dataTransform(data, request) : data))
-						.then(createActionResult);
-				}
+				let url = new URL(request.url);
+				let server = match.config.server.action?.bind(undefined, { url, splat, params, data, signal });
 
-				function createActionResult(data) {
-					let url = new URL(request.url);
-					let server = match.config.server.action?.bind(undefined, { url, splat, params, data, signal });
-
-					return action({ url, splat, params, data, signal, server });
-				}
+				return action({ url, splat, params, data, signal, server });
 			} else {
-				actionResult = action;
+				return action;
 			}
+		}
 
+		function handleActionResult(actionResult) {
 			let actionResultIsResponse = actionResult instanceof Response;
 			if (actionResultIsResponse) {
-				return createActionResult();
-
-				async function createActionResult() {
-					let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
-					if (isRedirect) {
-						return actionResult;
-					} else {
-						let actionData = await createData(actionResult);
+				let isRedirect = actionResult.status >= 300 && actionResult.status < 400;
+				if (isRedirect) {
+					return actionResult;
+				} else {
+					return createData(actionResult).then(actionData => {
 						if (actionResult.ok) {
 							return actionData;
 						} else {
 							throw actionData;
 						}
-					}
+					});
 				}
 			}
-
 			return actionResult;
 		}
 	}

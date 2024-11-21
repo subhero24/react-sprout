@@ -5,3 +5,5 @@ Redirect route with action
 Test:
 config with objects
 
+
+Should action result cascade on context? See action-results test ...

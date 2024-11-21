@@ -1,9 +1,33 @@
 import { awaitScheduler } from './scheduler.js';
 
-export function createResource(value, scheduler) {
-	// We use a seperate promise for suspense, as that always needs resolving
-	// but we would like to keep the original erroring promise around for data flow
+import { fulfilled, rejected } from './promise.js';
 
+// We use a seperate promise for suspense, as that always needs resolving
+// but we would like to keep the original erroring promise around for data flow
+
+export function createSyncResource(result, state = fulfilled) {
+	let status;
+	let promise;
+	let scheduler;
+
+	if (state === fulfilled) {
+		status = 'done';
+		promise = Promise.resolve(result);
+	} else if (state === rejected) {
+		status = 'error';
+		promise = Promise.reject(result);
+	}
+
+	return {
+		status,
+		result,
+		promise,
+		suspense: promise,
+		scheduler,
+	};
+}
+
+export function createAsyncResource(promise, scheduler) {
 	let resource = {
 		status: 'busy',
 		result: undefined,
@@ -12,39 +36,19 @@ export function createResource(value, scheduler) {
 		scheduler,
 	};
 
-	let isPromise = value instanceof Promise;
-	if (isPromise === false) {
-		let promise = Promise.resolve(value);
+	resource.promise = promise.finally(() => awaitScheduler(resource.scheduler));
+	resource.suspense = resource.promise.then(resolve, reject);
 
+	function resolve(result) {
 		resource.status = 'done';
-		resource.result = value;
-		resource.promise = promise;
-		resource.suspense = promise;
-	} else {
-		resource.promise = value.then(
-			result =>
-				awaitScheduler(resource.scheduler).then(() => {
-					return result;
-				}),
-			error =>
-				awaitScheduler(resource.scheduler).then(() => {
-					throw error;
-				}),
-		);
+		resource.result = result;
+		return result;
+	}
 
-		let resolve = function (result) {
-			resource.status = 'done';
-			resource.result = result;
-			return result;
-		};
-
-		let reject = function (error) {
-			resource.status = 'error';
-			resource.result = error;
-			return error;
-		};
-
-		resource.suspense = resource.promise.then(resolve, reject);
+	function reject(error) {
+		resource.status = 'error';
+		resource.result = error;
+		return error;
 	}
 
 	return resource;

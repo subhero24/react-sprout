@@ -37,6 +37,8 @@ import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import sleep from '../test/utilities/sleep.js';
 
+let pageId = 1;
+
 export default function Routes(...args) {
 	let options;
 	let elements;
@@ -53,21 +55,7 @@ export default function Routes(...args) {
 	let suspensePageByRequestCache = new Map();
 
 	return function Router(props) {
-		let {
-			request: routerRequest,
-			defaultRequest: routerInitialRequest,
-			sticky: stickyDefault = false,
-			dataTransform,
-			delayLoadingMs = defaultOptions.delayLoadingMs,
-			minimumLoadingMs = defaultOptions.minimumLoadingMs,
-			defaultFormMethod = defaultOptions.defaultFormMethod,
-			onAborted: onRouterAborted,
-			onCanceled: onRouterCancel,
-			onNavigate: onRouterNavigate,
-			onActionError: onRouterActionError,
-			onNavigateEnd: onRouterNavigateEnd,
-			onNavigateStart: onRouterNavigateStart,
-		} = props;
+		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault = false, dataTransform, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
@@ -219,24 +207,7 @@ export default function Routes(...args) {
 				[to, options] = [arg1?.to, arg1];
 			}
 
-			let {
-				push,
-				replace,
-				title,
-				state,
-				data,
-				target,
-				cache = false,
-				event: eventOriginal,
-				reload = false,
-				sticky = stickyDefault,
-				onAborted,
-				onCanceled,
-				onNavigate,
-				onActionError,
-				onNavigateEnd,
-				onNavigateStart,
-			} = options ?? {};
+			let { push, replace, title, state, data, target, cache = false, event: eventOriginal, reload = false, sticky = stickyDefault, onAborted, onCanceled, onNavigate, onActionError, onNavigateEnd, onNavigateStart } = options ?? {};
 
 			let url = new URL(to ?? '', location);
 			let fix = url.href === location.href;
@@ -344,11 +315,13 @@ export default function Routes(...args) {
 			try {
 				let delayLoadingPromise = sleep(delayLoadingMs);
 
-				let actionResult = await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
-				if (actionResult instanceof Response && actionResult.status === 303) {
-					let location = actionResult.headers.get('location');
-					let redirect = new Request(location);
-					redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
+				if (navigationPage.actionPromise) {
+					let actionResult = await Promise.race([navigationPage.promise, navigationPage.actionPromise]);
+					if (actionResult instanceof Response && actionResult.status === 303) {
+						let location = actionResult.headers.get('location');
+						let redirect = new Request(location);
+						redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
+					}
 				}
 
 				// Setting a function as state allows late binding to the action result
@@ -376,7 +349,9 @@ export default function Routes(...args) {
 					// We can not do this in an effect because it still resolves the suspended component before running the effect
 					// flashing the loading indicator
 					for (let loader of navigationPage.loaders) {
-						resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
+						if (loader.resource.scheduler) {
+							resetScheduler(loader.resource.scheduler, { delayLoadingMs: 0 });
+						}
 					}
 				}
 
@@ -414,7 +389,9 @@ export default function Routes(...args) {
 			} catch (error) {
 				// We use a promise to bail out if needed (ie abort), but this is not an error,
 				// so we catch it and do nothing if the page was intentionally aborted
+
 				let pageIsAborted = await isResolved(navigationPage.promise);
+
 				if (pageIsAborted === false) {
 					throw error;
 				}
@@ -545,11 +522,14 @@ export default function Routes(...args) {
 			let fresh = true;
 			let render = createRender(config, requested);
 			let method = render.request.method.toLowerCase();
-			let result = { fresh, render, event, callbacks };
+
+			let result = { id: pageId++, fresh, render, event, callbacks };
 
 			result.promise = createPromise();
 			result.actionPromise = createActionPromise();
 			result.loadersPromise = createLoadersPromise();
+
+			result.promise.catch(() => {});
 
 			let nextPage = nextRef.current;
 			if (nextPage) {
@@ -570,65 +550,65 @@ export default function Routes(...args) {
 			}
 
 			function createActionPromise() {
-				if (method !== POST) return;
-
-				let mounted = mountedRef.current;
-				if (mounted) {
-					page.fresh = false;
-				}
-
-				let nextPage = nextRef.current;
-				if (nextPage) {
-					nextPage.fresh = false;
-				}
-
-				for (let page of pagesRef.current) {
-					page.fresh = false;
-				}
-
-				for (let page of cacheRef.current) {
-					if (page) {
+				if (method === GET) {
+					result.timestamp = performance.now();
+				} else if (method === POST) {
+					let mounted = mountedRef.current;
+					if (mounted) {
 						page.fresh = false;
 					}
-				}
 
-				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
+					let nextPage = nextRef.current;
+					if (nextPage) {
+						nextPage.fresh = false;
+					}
 
-				result.action = createAction(render, { event, scheduler, dataTransform });
-
-				return Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise])
-					.catch(handleError)
-					.finally(handleFinally);
-
-				function handleError(error) {
-					if (event) {
-						callbacks?.onActionError?.(event, error);
-						onRouterActionErrorCallback(event, error);
-
-						setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
-
-						let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
-						if (registerError) {
-							setErrors(errors => [...errors, error]);
+					for (let page of pagesRef.current) {
+						if (page) {
+							page.fresh = false;
 						}
 					}
-					throw error;
-				}
 
-				function handleFinally() {
-					result.timestamp = Date.now();
+					for (let page of cacheRef.current) {
+						if (page) {
+							page.fresh = false;
+						}
+					}
+
+					let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
+
+					result.action = createAction(render, { event, scheduler, dataTransform });
+
+					return Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise])
+						.catch(error => {
+							console.log('EERROROROR');
+							if (event) {
+								callbacks?.onActionError?.(event, error);
+								onRouterActionErrorCallback(event, error);
+
+								setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
+
+								let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
+								if (registerError) {
+									setErrors(errors => [...errors, error]);
+								}
+							}
+							throw error;
+						})
+						.finally(() => {
+							result.timestamp = performance.now();
+						});
 				}
 			}
 
 			async function createLoadersPromise() {
-				let action = result.actionPromise;
-
 				let cache;
 				let caching = method !== POST && render.request.cache !== 'reload' && render.request.cache !== 'no-store';
 				if (caching && pageCache) {
 					cache = pageCache;
 				}
 
+				let action = result.actionPromise;
 				let scheduler = createScheduler({ delayLoadingMs, minimumLoadingMs });
 
 				result.loaders = createLoaders(render, { action, cache, scheduler });
@@ -640,6 +620,7 @@ export default function Routes(...args) {
 					pagesRef.current = pagesRef.current.filter(page => page !== result);
 
 					for (let page of pagesRef.current) {
+						if (page.timestamp == undefined) continue;
 						if (page.timestamp < result.timestamp) {
 							abortPage(page, `Out of order HTTP request`);
 						}

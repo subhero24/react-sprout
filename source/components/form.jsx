@@ -14,26 +14,7 @@ function Form(props, ref) {
 
 	let defaultFormMethod = options.defaultFormMethod === GET ? undefined : options.defaultFormMethod;
 
-	let {
-		push,
-		replace,
-		title,
-		state,
-		cache,
-		action,
-		reload,
-		sticky,
-		method = defaultFormMethod,
-		relative = true,
-		onSubmit,
-		onAborted,
-		onCanceled,
-		onNavigate,
-		onActionError,
-		onNavigateStart,
-		onNavigateEnd,
-		...other
-	} = props;
+	let { push, replace, title, state, cache, action, reload, sticky, method = defaultFormMethod, relative = true, onSubmit, onAborted, onCanceled, onNavigate, onActionError, onNavigateStart, onNavigateEnd, ...other } = props;
 
 	let router = useRouter();
 
@@ -65,13 +46,9 @@ function Form(props, ref) {
 						let dataHasFile = data.entries().find(entry => entry[1] instanceof File);
 						if (dataHasFile) {
 							if (formEncodingIsUrl) {
-								console.warn(
-									`A form with a file input is submitted with enctype "${enctype}". You probably want an enctype of "${MULTIPART}" to submit files.`,
-								);
+								console.warn(`A form with a file input is submitted with enctype "${enctype}". You probably want an enctype of "${MULTIPART}" to submit files.`);
 							} else if (formMethodIsGet) {
-								console.warn(
-									`A form with a file input is submitted with method "${method}". You probably want a method of "${POST}" to submit files.`,
-								);
+								console.warn(`A form with a file input is submitted with method "${method}". You probably want a method of "${POST}" to submit files.`);
 							}
 						}
 					}

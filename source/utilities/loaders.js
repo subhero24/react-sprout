@@ -1,5 +1,6 @@
 import { createData } from './data.js';
-import { createResource } from './resource.js';
+import { createSyncAsync } from './promise.js';
+import { createSyncResource, createAsyncResource } from './resource.js';
 import { isEquivalentMatch } from './match.js';
 
 export function createLoaders(render, options = {}) {
@@ -7,6 +8,7 @@ export function createLoaders(render, options = {}) {
 
 	let loaders = [];
 	let matched = render.root;
+	let actionResult = createSyncAsync(action);
 
 	while (matched) {
 		let match = matched;
@@ -17,8 +19,16 @@ export function createLoaders(render, options = {}) {
 				let request = render.request;
 
 				let signal = request.signal;
-				let result = createLoaderResult();
-				let resource = createResource(result, scheduler);
+				let result = actionResult.then(createLoaderResult).then(handleLoaderResult);
+				let resource;
+
+				let resultValue = result.value;
+				if (resultValue instanceof Promise) {
+					resource = createAsyncResource(resultValue, scheduler);
+				} else {
+					resource = createSyncResource(resultValue, result.state);
+				}
+
 				let controller = new AbortController();
 
 				signal.addEventListener('abort', () => controller.abort(), { once: true });
@@ -26,41 +36,30 @@ export function createLoaders(render, options = {}) {
 				loader = { match, resource, controller };
 
 				function createLoaderResult() {
-					let actionIsPromise = action instanceof Promise;
-					if (actionIsPromise) {
-						return action.then(createLoaderResult);
+					let loaderType = typeof configLoader;
+					if (loaderType === 'function') {
+						let { splat, params } = match;
+
+						let url = new URL(request.url);
+						let server = match.config.server.loader?.bind(undefined, { url, splat, params, signal });
+
+						return configLoader({ url, splat, params, signal, server });
 					} else {
-						return createLoaderResult();
+						return configLoader;
 					}
+				}
 
-					function createLoaderResult() {
-						let loaderResult;
-						let loaderType = typeof configLoader;
-						if (loaderType === 'function') {
-							let { splat, params } = match;
-
-							let url = new URL(request.url);
-							let server = match.config.server.loader?.bind(undefined, { url, splat, params, signal });
-
-							loaderResult = configLoader({ url, splat, params, signal, server });
-						} else {
-							loaderResult = configLoader;
-						}
-
-						let loaderResultIsResponse = loaderResult instanceof Response;
-						if (loaderResultIsResponse) {
-							return createLoaderResult();
-
-							async function createLoaderResult() {
-								let loaderData = await createData(loaderResult);
-								if (loaderResult.ok) {
-									return loaderData;
-								} else {
-									throw loaderData;
-								}
+				function handleLoaderResult(loaderResult) {
+					let loaderResultIsResponse = loaderResult instanceof Response;
+					if (loaderResultIsResponse) {
+						return createData(loaderResult).then(loaderData => {
+							if (loaderResult.ok) {
+								return loaderData;
+							} else {
+								throw loaderData;
 							}
-						}
-
+						});
+					} else {
 						return loaderResult;
 					}
 				}
