@@ -15,10 +15,10 @@ import { nativeDocument } from './utilities/document.js';
 
 import { routerContext } from './hooks/use-router.js';
 import { errorsContext } from './hooks/use-action-errors.js';
-import { actionsContext } from './hooks/use-actions.js';
-import { loadersContext } from './hooks/use-loaders.js';
 import { historyContext } from './hooks/use-history.js';
 import { locationContext } from './hooks/use-location.js';
+import { pageActionContext } from './hooks/use-page-action.js';
+import { pageLoadersContext } from './hooks/use-page-loaders.js';
 import { navigationsContext } from './hooks/use-navigations.js';
 import { optionsContext, defaultOptions } from './hooks/use-options.js';
 
@@ -55,7 +55,7 @@ export default function Routes(...args) {
 	let suspensePageByRequestCache = new Map();
 
 	return function Router(props) {
-		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault = false, dataTransform, relativeHistory = false, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
+		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault, dataTransform, relativeHistory = false, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
@@ -292,6 +292,7 @@ export default function Routes(...args) {
 				setNavigations([navigation]);
 			}
 
+			// Update navigation state after loading delay
 			if (delayLoadingMs > 0) {
 				setTimeout(() => {
 					setNavigations(navigations => {
@@ -334,7 +335,7 @@ export default function Routes(...args) {
 					navigationPage = redirectedPage;
 				}
 
-				if (intent === FETCH) {
+				if (sticky === true || intent === FETCH) {
 					await Promise.race([navigationPage.promise, navigationPage.loadersPromise]);
 				} else {
 					await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
@@ -355,7 +356,7 @@ export default function Routes(...args) {
 					}
 				}
 
-				createTransition(sticky, () => {
+				createTransition(sticky === 'transition', () => {
 					historyRef.current = { type, state };
 
 					setNavigations(navigations => navigations.filter(navigation => navigation.detail !== detail));
@@ -457,7 +458,7 @@ export default function Routes(...args) {
 					if (request.url === currentPage.render.request.url) {
 						cachedPage = currentPage;
 					} else {
-						cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url);
+						cachedPage = cacheRef.current.findLast(page => page?.render.request.url === request.url && page.fresh);
 					}
 
 					let nativePage = createPage(request, { cache: cachedPage });
@@ -500,15 +501,15 @@ export default function Routes(...args) {
 			<routerContext.Provider value={routerContextValue}>
 				<optionsContext.Provider value={optionsContextValue}>
 					<navigationsContext.Provider value={navigations}>
-						<actionsContext.Provider value={page.action}>
-							<loadersContext.Provider value={page.loaders}>
+						<pageActionContext.Provider value={page.action}>
+							<pageLoadersContext.Provider value={page.loaders}>
 								<historyContext.Provider value={history}>
 									<errorsContext.Provider value={errors}>
 										<locationContext.Provider value={location}>{elements}</locationContext.Provider>
 									</errorsContext.Provider>
 								</historyContext.Provider>
-							</loadersContext.Provider>
-						</actionsContext.Provider>
+							</pageLoadersContext.Provider>
+						</pageActionContext.Provider>
 					</navigationsContext.Provider>
 				</optionsContext.Provider>
 			</routerContext.Provider>
@@ -579,7 +580,6 @@ export default function Routes(...args) {
 
 					return Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise])
 						.catch(error => {
-							console.log('EERROROROR');
 							if (event) {
 								callbacks?.onActionError?.(event, error);
 								onRouterActionErrorCallback(event, error);

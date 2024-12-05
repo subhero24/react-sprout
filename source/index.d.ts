@@ -1,5 +1,6 @@
 type Splat = Array<string>;
 type Params = { [key: string]: string };
+type Sticky = false | true | "transition"
 
 type Action = (options: ActionOptions) => Promise<ActionValue> | ActionValue;
 type ActionValue = undefined | null | boolean | string | object | number | bigint | Response;
@@ -41,10 +42,10 @@ type Router = (props: RouterProps) => React.JSX.Element;
 type RouterProps = {
 	request?: Request;
 	defaultRequest?: Request;
-	sticky?: boolean;
 	dataTransform?: (data: any, request: Request) => any;
 	delayLoadingMs?: number;
 	minimumLoadingMs?: number;
+	defaultSticky?: Sticky;
 	defaultFormMethod?: string;
 	onAborted?: (event: CustomEvent, reason: any) => void;
 	onCanceled?: (event: CustomEvent) => void;
@@ -67,8 +68,8 @@ interface NavigationOptions {
 	title?: string;
 	state?: any;
 	cache?: boolean;
-	sticky?: boolean;
 	reload?: boolean;
+	sticky?: Sticky;
 	relative?: boolean;
 	onAborted?: (event: CustomEvent, reason: any) => void;
 	onCanceled?: (event: CustomEvent) => void;

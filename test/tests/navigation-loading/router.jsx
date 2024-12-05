@@ -13,7 +13,7 @@ function RouteA() {
 
 	return (
 		<>
-			<Link href="/b" sticky>
+			<Link href="/b" sticky="transition">
 				Navigate to B
 			</Link>
 

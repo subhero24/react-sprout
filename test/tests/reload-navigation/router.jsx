@@ -9,7 +9,7 @@ function Route() {
 	return (
 		<div>
 			<div id="navigations">{navigations.length}</div>
-			<Link reload sticky>
+			<Link reload sticky="transition">
 				Reload
 			</Link>
 		</div>

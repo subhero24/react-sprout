@@ -8,7 +8,7 @@ function Route() {
 	return (
 		<div>
 			<div id="value">{data}</div>
-			<Link reload sticky>
+			<Link reload sticky="transition">
 				Reload
 			</Link>
 		</div>

@@ -7,7 +7,7 @@ function Route() {
 
 	return (
 		<>
-			<Form method="post" sticky>
+			<Form method="post" sticky="transition">
 				<button>Submit</button>
 			</Form>
 			<div id="count">{data}</div>

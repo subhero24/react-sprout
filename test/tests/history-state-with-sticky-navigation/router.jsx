@@ -12,7 +12,7 @@ function Parent(props) {
 
 function RouteA() {
 	return (
-		<Link href="/b" sticky state="b">
+		<Link href="/b" sticky="transition" state="b">
 			Navigate to B
 		</Link>
 	);
@@ -20,7 +20,7 @@ function RouteA() {
 
 function RouteB() {
 	return (
-		<Link href="/a" sticky state="a">
+		<Link href="/a" sticky="transition" state="a">
 			Navigate to A
 		</Link>
 	);

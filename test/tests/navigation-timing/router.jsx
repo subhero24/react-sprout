@@ -29,7 +29,7 @@ function RouteA() {
 		<div>
 			<h1>A</h1>
 			<div>
-				<Link href="/b" sticky>
+				<Link href="/b" sticky="transition">
 					Navigate to B
 				</Link>
 			</div>

@@ -1,7 +1,7 @@
-import useAction from './use-action.js';
+import useRouteAction from './use-route-action.js';
 
 export default function useActionResult() {
-	let action = useAction();
+	let action = useRouteAction();
 	let actionResource = action?.resource;
 	if (actionResource) {
 		if (actionResource.status === 'busy') {

@@ -1,12 +1,12 @@
 import { rootContext } from '../hooks/use-root.js';
 import { matchContext } from '../hooks/use-match.js';
-import { actionContext } from '../hooks/use-action.js';
-import { loaderContext } from '../hooks/use-loader.js';
+import { routeActionContext } from '../hooks/use-route-action.js';
+import { routeLoaderContext } from '../hooks/use-route-loader.js';
 
 import useRoot from '../hooks/use-root.js';
-import useAction from '../hooks/use-action.js';
-import useLoaders from '../hooks/use-loaders.js';
-import useActions from '../hooks/use-actions.js';
+import usePageAction from '../hooks/use-page-action.js';
+import usePageLoaders from '../hooks/use-page-loaders.js';
+import useRouteAction from '../hooks/use-route-action.js';
 
 export default function Route(props) {
 	let { match, children } = props;
@@ -15,21 +15,21 @@ export default function Route(props) {
 	let superRoot = useRoot();
 	let routeRoot = root ? match.base : superRoot;
 
-	let actions = useActions();
-	let loaders = useLoaders();
+	let action = usePageAction();
+	let loaders = usePageLoaders();
 
-	let superAction = useAction();
-	let routeAction = actions?.match.config === match.config ? actions : superAction;
+	let superAction = useRouteAction();
+	let routeAction = action?.match.config === match.config ? action : superAction;
 	let routeLoader = loaders.find(loader => loader.match.config === match.config);
 
 	return (
 		<matchContext.Provider value={match}>
 			<rootContext.Provider value={routeRoot}>
-				<actionContext.Provider value={routeAction}>
-					<loaderContext.Provider value={routeLoader}>
+				<routeActionContext.Provider value={routeAction}>
+					<routeLoaderContext.Provider value={routeLoader}>
 						<Component>{children}</Component>
-					</loaderContext.Provider>
-				</actionContext.Provider>
+					</routeLoaderContext.Provider>
+				</routeActionContext.Provider>
 			</rootContext.Provider>
 		</matchContext.Provider>
 	);
