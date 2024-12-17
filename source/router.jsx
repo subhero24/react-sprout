@@ -337,6 +337,11 @@ export default function Routes(...args) {
 
 				if (sticky === true || intent === FETCH) {
 					await Promise.race([navigationPage.promise, navigationPage.loadersPromise]);
+				} else if (typeof sticky === 'number') {
+					let stickyPromise = sleep(sticky);
+					let stickyLoadingPromise = Promise.all([delayLoadingPromise, stickyPromise]);
+
+					await Promise.race([navigationPage.promise, navigationPage.loadersPromise, stickyLoadingPromise]);
 				} else {
 					await Promise.race([navigationPage.promise, navigationPage.loadersPromise, delayLoadingPromise]);
 
