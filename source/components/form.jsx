@@ -1,8 +1,8 @@
 import { forwardRef } from 'react';
 
 import useRouter from '../hooks/use-router.js';
-import useOptions from '../hooks/use-options.js';
 import useResolve from '../hooks/use-resolve.js';
+import useOptionDefaultFormMethod from '../hooks/use-option-default-form-method.js';
 
 import { development } from '../utilities/environment.js';
 
@@ -10,9 +10,7 @@ import { GET, MULTIPART, POST } from '../constants.js';
 import { URLENCODED } from '../constants.js';
 
 function Form(props, ref) {
-	let options = useOptions();
-
-	let defaultFormMethod = options.defaultFormMethod === GET ? undefined : options.defaultFormMethod;
+	let defaultFormMethod = useOptionDefaultFormMethod();
 
 	let { push, replace, title, state, cache, action, reload, sticky, method = defaultFormMethod, relative = true, onSubmit, onAborted, onCanceled, onNavigate, onActionError, onNavigateStart, onNavigateEnd, ...other } = props;
 

@@ -20,7 +20,9 @@ import { locationContext } from './hooks/use-location.js';
 import { pageActionContext } from './hooks/use-page-action.js';
 import { pageLoadersContext } from './hooks/use-page-loaders.js';
 import { navigationsContext } from './hooks/use-navigations.js';
-import { optionsContext, defaultOptions } from './hooks/use-options.js';
+import { optionDelayLoadingContext } from './hooks/use-option-delay-loading.js';
+import { optionMinimumLoadingContext } from './hooks/use-option-minimum-loading.js';
+import { optionDefaultFormMethodContext } from './hooks/use-option-default-form-method.js';
 
 import { GET, POST } from './constants.js';
 import { PUSH, REPLACE } from './constants.js';
@@ -37,7 +39,8 @@ import useStateWithCallback from './hooks/use-state-with-callback.js';
 
 import sleep from '../test/utilities/sleep.js';
 
-let historyBaseLength = nativeHistory?.length ?? 0;
+const defaultDelayLoadingMs = 30;
+const defaultMinimumLoadingMs = 500;
 
 export default function Routes(...args) {
 	let options;
@@ -55,7 +58,7 @@ export default function Routes(...args) {
 	let suspensePageByRequestCache = new Map();
 
 	return function Router(props) {
-		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault, dataTransform, relativeHistory = false, delayLoadingMs = defaultOptions.delayLoadingMs, minimumLoadingMs = defaultOptions.minimumLoadingMs, defaultFormMethod = defaultOptions.defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
+		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault, dataTransform, delayLoadingMs = defaultDelayLoadingMs, minimumLoadingMs = defaultMinimumLoadingMs, defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
@@ -182,7 +185,7 @@ export default function Routes(...args) {
 					pushState: (state, title = null, url) => nativeHistory?.pushState(state, title, url),
 					replaceState: (state, title = null, url) => nativeHistory?.replaceState(state, title, url),
 					get length() {
-						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0) - (relativeHistory ? historyBaseLength - 1 : 0);
+						return nativeHistory.length + (historyRef.current?.type === PUSH ? 1 : 0);
 					},
 					get state() {
 						return historyRef.current ? historyRef.current.state : nativeHistory.state;
@@ -195,7 +198,7 @@ export default function Routes(...args) {
 					},
 				};
 			}
-		}, [native, historyRef, relativeHistory]);
+		}, [native, historyRef]);
 
 		let navigate = useImmutableCallback(async (arg1, arg2) => {
 			// navigate(options)
@@ -498,25 +501,25 @@ export default function Routes(...args) {
 
 		let routerContextValue = useMemo(() => ({ navigate, abort, dismiss, subscribe }), [navigate, abort, dismiss, subscribe]);
 
-		let optionsContextValue = useMemo(() => {
-			return { delayLoadingMs, minimumLoadingMs, defaultFormMethod };
-		}, [delayLoadingMs, minimumLoadingMs, defaultFormMethod]);
-
 		return (
 			<routerContext.Provider value={routerContextValue}>
-				<optionsContext.Provider value={optionsContextValue}>
-					<navigationsContext.Provider value={navigations}>
-						<pageActionContext.Provider value={page.action}>
-							<pageLoadersContext.Provider value={page.loaders}>
-								<historyContext.Provider value={history}>
-									<errorsContext.Provider value={errors}>
-										<locationContext.Provider value={location}>{elements}</locationContext.Provider>
-									</errorsContext.Provider>
-								</historyContext.Provider>
-							</pageLoadersContext.Provider>
-						</pageActionContext.Provider>
-					</navigationsContext.Provider>
-				</optionsContext.Provider>
+				<optionDelayLoadingContext.Provider value={delayLoadingMs}>
+					<optionMinimumLoadingContext.Provider value={minimumLoadingMs}>
+						<optionDefaultFormMethodContext.Provider value={defaultFormMethod}>
+							<navigationsContext.Provider value={navigations}>
+								<pageActionContext.Provider value={page.action}>
+									<pageLoadersContext.Provider value={page.loaders}>
+										<historyContext.Provider value={history}>
+											<errorsContext.Provider value={errors}>
+												<locationContext.Provider value={location}>{elements}</locationContext.Provider>
+											</errorsContext.Provider>
+										</historyContext.Provider>
+									</pageLoadersContext.Provider>
+								</pageActionContext.Provider>
+							</navigationsContext.Provider>
+						</optionDefaultFormMethodContext.Provider>
+					</optionMinimumLoadingContext.Provider>
+				</optionDelayLoadingContext.Provider>
 			</routerContext.Provider>
 		);
 

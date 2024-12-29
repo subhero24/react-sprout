@@ -1,6 +1,6 @@
 type Splat = Array<string>;
 type Params = { [key: string]: string };
-type Sticky = false | true | "transition"
+type Sticky = false | true | 'transition';
 
 type Action = (options: ActionOptions) => Promise<ActionValue> | ActionValue;
 type ActionValue = undefined | null | boolean | string | object | number | bigint | Response;
@@ -120,7 +120,7 @@ export function useSplat(): Splat;
 export function useParams(): Params;
 export function useHistory(): History;
 export function useLocation(): URL;
-export function useActionError(): any;
+export function useActionErrors(): any;
 export function useActionResult(): any;
 export function useLoaderResult(): any;
 

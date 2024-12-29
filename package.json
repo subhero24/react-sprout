@@ -11,7 +11,7 @@
 		"./express": "./build/express.js"
 	},
 	"scripts": {
-		"lint": "eslint source/**/*.* --max-warnings 0",
+		"lint": "eslint 'source/**/*.{js,jsx}' --max-warnings 0",
 		"test": "node --test --test-concurrency 1 ./test/tests/index.test.js",
 		"test:develop": "node --watch --test --test-concurrency 1 ./test/tests/index.test.js",
 		"build": "npm run build-main && npm run build-express",
