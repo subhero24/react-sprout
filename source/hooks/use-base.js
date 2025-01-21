@@ -1,5 +1,7 @@
-import useMatch from './use-match.js';
+import { createContext, useContext } from 'react';
+
+export let baseContext = createContext('/');
 
 export default function useBase() {
-	return useMatch()?.base ?? '/';
+	return useContext(baseContext);
 }

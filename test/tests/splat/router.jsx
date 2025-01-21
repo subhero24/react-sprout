@@ -1,7 +1,7 @@
-import Routes, { useSplat } from '../../../source/index.js';
+import Routes from '../../../source/index.js';
 
-function Route() {
-	let splat = useSplat();
+function Route(props) {
+	let { splat } = props;
 
 	return JSON.stringify(splat);
 }

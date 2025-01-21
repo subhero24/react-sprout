@@ -1,5 +1,12 @@
 import Routes, { Form, useActionResult } from '../../../source/index.js';
 
+let Router = Routes(
+	<Parent action={action}>
+		<ChildA path="a" />
+		<ChildB path="b" />
+	</Parent>,
+);
+
 function Parent(props) {
 	let action = useActionResult();
 
@@ -30,12 +37,5 @@ function ChildB() {
 function action() {
 	return 'action';
 }
-
-let Router = Routes(
-	<Parent action={action}>
-		<ChildA path="a" />
-		<ChildB path="b" />
-	</Parent>,
-);
 
 export default Router;

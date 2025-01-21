@@ -19,8 +19,8 @@ Test('action results', async () => {
 		}
 
 		let actionChild = await page.$eval('#action-child', node => node.innerText);
-		if (actionChild !== 'action') {
-			throw new Error('The child should have an action result');
+		if (actionChild === 'action') {
+			throw new Error('The child should not have an action result');
 		}
 	});
 });

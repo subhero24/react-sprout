@@ -33,7 +33,7 @@ export default async function (root, path, test) {
 
 	await server.listen();
 	await page.goto('http://localhost:1337' + path);
-	await page.waitForSelector('#watchdog');
+	await page.waitForSelector('#watchdog', { timeout: 500 });
 
 	try {
 		await test({ server, browser, page });

@@ -1,11 +1,11 @@
-import Routes, { useParams } from '../../../source/index.js';
+import Routes from '../../../source/index.js';
 
 function Parent(props) {
 	return props.children;
 }
 
-function Child() {
-	let params = useParams();
+function Child(props) {
+	let { params } = props;
 
 	return JSON.stringify(params);
 }

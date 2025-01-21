@@ -1,7 +1,7 @@
-import Routes, { useParams } from '../../../source/index.js';
+import Routes from '../../../source/index.js';
 
-function Route() {
-	let params = useParams();
+function Route(props) {
+	let { params } = props;
 
 	return JSON.stringify(params);
 }

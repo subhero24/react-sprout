@@ -116,8 +116,6 @@ type AbortNavigations = undefined | null | Navigation | Array<Navigation>;
 type Abort = (navigations: AbortNavigations) => void;
 
 export function useAbort(): Abort;
-export function useSplat(): Splat;
-export function useParams(): Params;
 export function useHistory(): History;
 export function useLocation(): URL;
 export function useActionErrors(): any;
