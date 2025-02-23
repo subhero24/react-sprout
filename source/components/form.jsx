@@ -18,69 +18,70 @@ function Form(props, ref) {
 
 	let resolve = useResolve();
 	let resolvedPath = resolve(action, { relative });
+	let resolvedAction = action == undefined ? undefined : resolvedPath;
 
 	function handleSubmit(event) {
 		onSubmit?.(event);
 
-		if (event.defaultPrevented == false) {
-			let form = event.target;
-			let submitter = event.nativeEvent.submitter;
+		if (event.defaultPrevented) return;
 
-			let target = submitter?.getAttribute('formtarget') ?? form.getAttribute('target');
-			let shouldNavigate = target == undefined || target === '_self';
-			if (shouldNavigate && router) {
-				event.preventDefault();
+		let form = event.target;
+		let submitter = event.nativeEvent.submitter;
 
-				let target = form;
-				let action = submitter?.getAttribute('formaction') ?? resolvedPath;
-				let method = submitter?.getAttribute('formmethod') ?? form.getAttribute('method') ?? GET;
-				let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
+		let target = submitter?.getAttribute('formtarget') ?? form.getAttribute('target');
+		let shouldNavigate = target == undefined || target === '_self';
+		if (shouldNavigate && router) {
+			event.preventDefault();
 
-				let data = new FormData(form, submitter);
-				let formMethodIsGet = method.toLowerCase() === GET;
-				let formEncodingIsUrl = enctype.toLowerCase() === URLENCODED;
-				if (formEncodingIsUrl || formMethodIsGet) {
-					if (development) {
-						let dataHasFile = data.entries().find(entry => entry[1] instanceof File);
-						if (dataHasFile) {
-							if (formEncodingIsUrl) {
-								console.warn(`A form with a file input is submitted with enctype "${enctype}". You probably want an enctype of "${MULTIPART}" to submit files.`);
-							} else if (formMethodIsGet) {
-								console.warn(`A form with a file input is submitted with method "${method}". You probably want a method of "${POST}" to submit files.`);
-							}
+			let target = form;
+			let action = submitter?.getAttribute('formaction') ?? resolvedPath;
+			let method = submitter?.getAttribute('formmethod') ?? form.getAttribute('method') ?? GET;
+			let enctype = submitter?.getAttribute('formenctype') ?? form.getAttribute('enctype') ?? URLENCODED;
+
+			let data = new FormData(form, submitter);
+			let formMethodIsGet = method.toLowerCase() === GET;
+			let formEncodingIsUrl = enctype.toLowerCase() === URLENCODED;
+			if (formEncodingIsUrl || formMethodIsGet) {
+				if (development) {
+					let dataHasFile = data.entries().find(entry => entry[1] instanceof File);
+					if (dataHasFile) {
+						if (formEncodingIsUrl) {
+							console.warn(`A form with a file input is submitted with enctype "${enctype}". You probably want an enctype of "${MULTIPART}" to submit files.`);
+						} else if (formMethodIsGet) {
+							console.warn(`A form with a file input is submitted with method "${method}". You probably want a method of "${POST}" to submit files.`);
 						}
 					}
-
-					data = new URLSearchParams(data);
 				}
 
-				// Resolve always returns an absolute path, so we can use the components router without a problem
-				router.navigate(action, {
-					push,
-					replace,
-					state,
-					title,
-					data,
-					cache,
-					event,
-					reload,
-					method,
-					sticky,
-					target,
-					onAborted,
-					onCanceled,
-					onNavigate,
-					onActionError,
-					onNavigateEnd,
-					onNavigateStart,
-				});
-			} else {
-				form.requestSubmit(submitter);
+				data = new URLSearchParams(data);
 			}
+
+			// Resolve always returns an absolute path, so we can use the components router without a problem
+			router.navigate(action, {
+				push,
+				replace,
+				state,
+				title,
+				data,
+				cache,
+				event,
+				reload,
+				method,
+				sticky,
+				target,
+				onAborted,
+				onCanceled,
+				onNavigate,
+				onActionError,
+				onNavigateEnd,
+				onNavigateStart,
+			});
+		} else {
+			form.requestSubmit(submitter);
 		}
 	}
 
-	return <form ref={ref} action={resolvedPath} method={method} onSubmit={handleSubmit} {...other} />;
+	return <form ref={ref} action={resolvedAction} method={method} onSubmit={handleSubmit} {...other} />;
 }
 
 export default forwardRef(Form);

@@ -8,4 +8,4 @@ Only the action should have the data as loaders can be partial page results when
 No loaders on redirect as they do not render anything
 
 
-
+TODO: add action to loaders to apply incremental changes on the client?

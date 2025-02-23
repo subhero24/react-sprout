@@ -34,7 +34,7 @@ function Route() {
 }
 
 async function action() {
-	await sleep(500);
+	await sleep(5000);
 }
 
 export default Router;

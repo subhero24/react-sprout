@@ -219,7 +219,7 @@ function sortRoutesByDescriptorScore(routes, scores) {
 }
 
 export function createConfigLoader(options, context) {
-	let level = context?.level;
+	let level = context?.level ?? 0;
 	let prefix = options?.prefix ?? '';
 
 	return async function loader({ url }) {

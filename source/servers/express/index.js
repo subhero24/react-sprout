@@ -6,6 +6,8 @@ import { createConfig } from '../../utilities/config.js';
 
 const rangeRegex = /(?<type>\w+)=(?<level>\d+)/;
 
+export { default as Redirect } from '../../components/redirect.jsx';
+
 export default function Routes(...args) {
 	let options;
 	let elements;
@@ -96,7 +98,7 @@ export default function Routes(...args) {
 
 						let data = await createData(requested);
 						if (dataTransform) {
-							data = await dataTransform(data, req);
+							data = await dataTransform(data, req, res);
 						}
 
 						result = await action({ url, splat, params, data, signal, request: req, response: res });

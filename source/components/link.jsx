@@ -11,44 +11,46 @@ function Link(props, ref) {
 	let resolve = useResolve();
 	let location = useLocation();
 	let resolvedPath = resolve(href, { relative });
+	let resolvedHref = href == undefined ? undefined : resolvedPath;
 
 	function handleClick(event) {
 		onClick?.(event);
 
-		if (event.defaultPrevented === false) {
-			let isLeftClick = event.button === 0;
-			let isSelfTarget = target == undefined || target === '_self';
-			let isSameOrigin = new URL(resolvedPath, location).origin === location.origin;
-			let hasModifierKey = event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
-			let shouldNavigate = !hasModifierKey && isSameOrigin && isLeftClick && isSelfTarget;
-			if (shouldNavigate && router) {
-				event.preventDefault();
+		if (event.defaultPrevented) return;
+		if (resolvedHref == undefined) return;
 
-				let target = event.currentTarget;
+		let isLeftClick = event.button === 0;
+		let isSelfTarget = target == undefined || target === '_self';
+		let isSameOrigin = new URL(resolvedPath, location).origin === location.origin;
+		let hasModifierKey = event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
+		let shouldNavigate = !hasModifierKey && isSameOrigin && isLeftClick && isSelfTarget;
+		if (shouldNavigate && router) {
+			event.preventDefault();
 
-				// Resolve always returns an absolute path, so we can use the components router without a problem
-				router.navigate(resolvedPath, {
-					data,
-					state,
-					title,
-					cache,
-					event,
-					push,
-					replace,
-					reload,
-					sticky,
-					target,
-					onAborted,
-					onCanceled,
-					onNavigate,
-					onNavigateEnd,
-					onNavigateStart,
-				});
-			}
+			let target = event.currentTarget;
+
+			// Resolve always returns an absolute path, so we can use the components router without a problem
+			router.navigate(resolvedPath, {
+				data,
+				state,
+				title,
+				cache,
+				event,
+				push,
+				replace,
+				reload,
+				sticky,
+				target,
+				onAborted,
+				onCanceled,
+				onNavigate,
+				onNavigateEnd,
+				onNavigateStart,
+			});
 		}
 	}
 
-	return <a ref={ref} href={resolvedPath} target={target} onClick={handleClick} {...other} />;
+	return <a ref={ref} href={resolvedHref} target={target} onClick={handleClick} {...other} />;
 }
 
 export default forwardRef(Link);

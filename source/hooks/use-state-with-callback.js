@@ -2,25 +2,25 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import useImmutableCallback from './use-immutable-callback';
 
 export default function useStateWithCallback(initialState) {
-	let stateRef = useRef();
-	let callbackRef = useRef();
+	let callbacksRef = useRef([]);
+
 	let [state, setState] = useState(initialState);
 
 	useLayoutEffect(() => {
-		if (state === stateRef.current) {
-			callbackRef.current?.();
-		}
-	}, [state]);
+		callbacksRef.current.map(callback => callback());
+		callbacksRef.current = [];
+	});
 
 	let setStateWithCallback = useImmutableCallback((newState, callback) => {
-		if (typeof newState === 'function') {
-			newState = newState(state);
-		}
-
 		setState(newState);
 
-		stateRef.current = newState;
-		callbackRef.current = callback;
+		if (callback) {
+			if (typeof newState === 'function') {
+				callbacksRef.current.push(callback);
+			} else {
+				callbacksRef.current = [callback];
+			}
+		}
 	});
 
 	return [state, setStateWithCallback];
