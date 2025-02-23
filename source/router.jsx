@@ -60,7 +60,6 @@ export default function Routes(...args) {
 	return function Router(props) {
 		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault, dataTransform, delayLoadingMs = defaultDelayLoadingMs, minimumLoadingMs = defaultMinimumLoadingMs, defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
-		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
 		// cacheRef keeps track of cahced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
 
@@ -103,18 +102,13 @@ export default function Routes(...args) {
 			};
 		});
 
-		let [navigations, setNavigations] = useState([]);
 		let [navigations, setNavigations] = useStateWithCallback([]);
 
 		let abortPage = useImmutableCallback((page, reason) => {
 			page.promise.reject(reason);
 			page.action?.controller.abort(reason);
 			page.loaders?.forEach(loader => loader.controller.abort(reason));
-			page.callbacks?.onAborted?.(page.event, reason);
 
-			setNavigations(navigations => navigations.filter(navigation => navigation.detail !== page.event?.detail));
-
-			onRouterAbortedCallback?.(page.event, reason);
 			setNavigations(
 				navigations => navigations.filter(navigation => navigation.detail !== page.event?.detail),
 				() => {
@@ -346,7 +340,6 @@ export default function Routes(...args) {
 
 				// Setting a function as state allows late binding to the action result
 				if (typeof state === 'function') {
-					state = await state(navigationPage.action?.resource.result);
 					state = state(navigationPage.action?.resource.result);
 				}
 
@@ -434,7 +427,6 @@ export default function Routes(...args) {
 
 			historyRef.current = undefined;
 			setPage(page);
-			setNavigations(navigations.filter(navigation => !abortedDetails.includes(navigation.detail)));
 
 			let nextPage = nextRef.current;
 			if (nextPage && abortedDetails.includes(nextPage.event?.detail)) {
@@ -606,11 +598,6 @@ export default function Routes(...args) {
 					return Promise.race([result.promise, event ? result.action?.resource.promise : result.action?.promise])
 						.catch(error => {
 							if (event) {
-								callbacks?.onActionError?.(event, error);
-								onRouterActionErrorCallback(event, error);
-
-								setNavigations(navigations => navigations.filter(navigation => navigation.detail !== event.detail));
-
 								let registerError = errorConsumerCountRef.current && !event.defaultPrevented;
 								if (registerError) {
 									setErrors(errors => [...errors, error]);
