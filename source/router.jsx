@@ -61,6 +61,7 @@ export default function Routes(...args) {
 		let { request: routerRequest, defaultRequest: routerInitialRequest, sticky: stickyDefault, dataTransform, delayLoadingMs = defaultDelayLoadingMs, minimumLoadingMs = defaultMinimumLoadingMs, defaultFormMethod, onAborted: onRouterAborted, onCanceled: onRouterCancel, onNavigate: onRouterNavigate, onActionError: onRouterActionError, onNavigateEnd: onRouterNavigateEnd, onNavigateStart: onRouterNavigateStart } = props;
 
 		// cacheRef keeps track of chaced pages in the history, allowing popstate to reuse previous page loaders
+		// cacheRef keeps track of cahced pages in the history, allowing popstate to reuse previous page loaders
 		let cacheRef = useRef([]);
 
 		// a fake history is kept to allow background rendering with the new history
@@ -103,6 +104,7 @@ export default function Routes(...args) {
 		});
 
 		let [navigations, setNavigations] = useState([]);
+		let [navigations, setNavigations] = useStateWithCallback([]);
 
 		let abortPage = useImmutableCallback((page, reason) => {
 			page.promise.reject(reason);
@@ -113,6 +115,13 @@ export default function Routes(...args) {
 			setNavigations(navigations => navigations.filter(navigation => navigation.detail !== page.event?.detail));
 
 			onRouterAbortedCallback?.(page.event, reason);
+			setNavigations(
+				navigations => navigations.filter(navigation => navigation.detail !== page.event?.detail),
+				() => {
+					page.callbacks?.onAborted?.(page.event, reason);
+					onRouterAbortedCallback?.(page.event, reason);
+				},
+			);
 		});
 
 		let cleanCache = useImmutableCallback(() => {
@@ -324,13 +333,21 @@ export default function Routes(...args) {
 					if (actionResult instanceof Response && actionResult.status === 303) {
 						let location = actionResult.headers.get('location');
 						let redirect = new Request(location);
+
 						redirectedPage = createPage(redirect, { event, callbacks }); // TODO: Should use cache here? I assume not
+
+						abortPage(navigationPage, `Redirected to ${redirectedPage.render.request.url}`);
+
+						// Aborting the page also removes its event details from navigations, but the navigation is still redirecting,
+						// so we add the original navigation back
+						setNavigations(navigations => [...navigations, navigation]);
 					}
 				}
 
 				// Setting a function as state allows late binding to the action result
 				if (typeof state === 'function') {
 					state = await state(navigationPage.action?.resource.result);
+					state = state(navigationPage.action?.resource.result);
 				}
 
 				// Change this after the state update function because we need the old navigationPage action to update the state
@@ -598,6 +615,14 @@ export default function Routes(...args) {
 								if (registerError) {
 									setErrors(errors => [...errors, error]);
 								}
+
+								setNavigations(
+									navigations => navigations.filter(navigation => navigation.detail !== event.detail),
+									() => {
+										callbacks?.onActionError?.(event, error);
+										onRouterActionErrorCallback(event, error);
+									},
+								);
 							}
 							throw error;
 						})
